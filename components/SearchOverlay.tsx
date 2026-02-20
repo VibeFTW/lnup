@@ -162,6 +162,11 @@ export function SearchOverlay({ visible, onClose }: SearchOverlayProps) {
     router.push(`/event/${eventId}`);
   };
 
+  const handleUserPress = (userId: string) => {
+    handleClose();
+    router.push(`/user/${userId}`);
+  };
+
   const tabs: { id: SearchTab; label: string }[] = [
     { id: "events", label: "Events" },
     { id: "venues", label: "Venues" },
@@ -256,7 +261,7 @@ export function SearchOverlay({ visible, onClose }: SearchOverlayProps) {
             data={filteredUsers}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <UserRow profile={item} onPress={handleClose} />
+              <UserRow profile={item} onPress={() => handleUserPress(item.id)} />
             )}
             contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={

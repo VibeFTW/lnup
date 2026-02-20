@@ -51,7 +51,7 @@ export default function EventDetailScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Floating Header (over cover image) */}
+      {/* Floating Header */}
       <View
         className="absolute top-0 left-0 right-0 z-10 flex-row items-center justify-between px-4 py-3"
         style={{ paddingTop: insets.top }}
@@ -92,41 +92,36 @@ export default function EventDetailScreen() {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Cover */}
         <EventCover category={event.category} imageUrl={event.image_url} size="detail" />
 
         <View className="px-4 pb-8 -mt-4 rounded-t-3xl bg-background pt-5">
-          {/* Trust Badge + Creator */}
+          {/* Trust Badge + Creator (tappable) */}
           <View className="flex-row items-center gap-2 mb-3">
             <TrustBadge sourceType={event.source_type} />
             {event.creator && (
-              <View className="flex-row items-center gap-1.5">
+              <TouchableOpacity
+                onPress={() => router.push(`/user/${event.creator!.id}`)}
+                className="flex-row items-center gap-1.5"
+              >
                 <RankBadge score={event.creator.trust_score} />
                 <Text className="text-xs text-text-muted">
                   · {event.creator.display_name} ({event.creator.trust_score})
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
           </View>
 
-          {/* Title */}
           <Text className="text-3xl font-bold text-text-primary mb-2">
             {event.title}
           </Text>
 
-          {/* Category */}
           <View className="flex-row items-center gap-1.5 mb-4">
-            <Ionicons
-              name={getCategoryIcon(event.category) as any}
-              size={16}
-              color="#6C5CE7"
-            />
+            <Ionicons name={getCategoryIcon(event.category) as any} size={16} color="#6C5CE7" />
             <Text className="text-sm font-medium text-primary">
               {getCategoryLabel(event.category)}
             </Text>
           </View>
 
-          {/* Description */}
           <Text className="text-base text-text-secondary leading-6 mb-6">
             {event.description}
           </Text>
@@ -138,12 +133,8 @@ export default function EventDetailScreen() {
                 <Ionicons name="location" size={20} color="#6C5CE7" />
               </View>
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-text-primary">
-                  {event.venue?.name}
-                </Text>
-                <Text className="text-xs text-text-secondary">
-                  {event.venue?.address}
-                </Text>
+                <Text className="text-sm font-semibold text-text-primary">{event.venue?.name}</Text>
+                <Text className="text-xs text-text-secondary">{event.venue?.address}</Text>
               </View>
               <Ionicons name="navigate-outline" size={18} color="#A0A0B8" />
             </View>
@@ -153,12 +144,9 @@ export default function EventDetailScreen() {
                 <Ionicons name="calendar" size={20} color="#6C5CE7" />
               </View>
               <View>
-                <Text className="text-sm font-semibold text-text-primary">
-                  {formatEventDate(event.event_date)}
-                </Text>
+                <Text className="text-sm font-semibold text-text-primary">{formatEventDate(event.event_date)}</Text>
                 <Text className="text-xs text-text-secondary">
-                  {formatTime(event.time_start)}
-                  {event.time_end && ` – ${formatTime(event.time_end)}`} Uhr
+                  {formatTime(event.time_start)}{event.time_end && ` – ${formatTime(event.time_end)}`} Uhr
                 </Text>
               </View>
             </View>
@@ -168,9 +156,7 @@ export default function EventDetailScreen() {
                 <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
                   <Ionicons name="pricetag" size={20} color="#6C5CE7" />
                 </View>
-                <Text className="text-sm font-semibold text-text-primary">
-                  {event.price_info}
-                </Text>
+                <Text className="text-sm font-semibold text-text-primary">{event.price_info}</Text>
               </View>
             )}
           </View>
@@ -179,120 +165,81 @@ export default function EventDetailScreen() {
           <View className="flex-row gap-2 mb-6">
             <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
               <Ionicons name="people" size={18} color="#00D2FF" />
-              <Text className="text-lg font-bold text-text-primary mt-1">
-                {event.going_count}
-              </Text>
+              <Text className="text-lg font-bold text-text-primary mt-1">{event.going_count}</Text>
               <Text className="text-xs text-text-muted">Dabei</Text>
             </View>
             <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
               <Ionicons name="bookmark" size={18} color="#6C5CE7" />
-              <Text className="text-lg font-bold text-text-primary mt-1">
-                {event.saves_count}
-              </Text>
+              <Text className="text-lg font-bold text-text-primary mt-1">{event.saves_count}</Text>
               <Text className="text-xs text-text-muted">Gemerkt</Text>
             </View>
             <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
               <Ionicons name="checkmark-circle" size={18} color="#00E676" />
-              <Text className="text-lg font-bold text-text-primary mt-1">
-                {event.confirmations_count}
-              </Text>
+              <Text className="text-lg font-bold text-text-primary mt-1">{event.confirmations_count}</Text>
               <Text className="text-xs text-text-muted">War dabei</Text>
             </View>
             <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
               <Ionicons name="camera" size={18} color="#FF6B9D" />
-              <Text className="text-lg font-bold text-text-primary mt-1">
-                {event.photos_count}
-              </Text>
+              <Text className="text-lg font-bold text-text-primary mt-1">{event.photos_count}</Text>
               <Text className="text-xs text-text-muted">Fotos</Text>
             </View>
           </View>
 
-          {/* Photo Gallery */}
           <PhotoGallery photos={approvedPhotos} />
-
-          {/* Host: Photo Moderation */}
           {isHost && <PhotoModeration eventId={event.id} />}
-
-          {/* Photo Upload */}
           <PhotoUpload eventId={event.id} />
 
-          {/* Community warning */}
-          {event.source_type === "community" &&
-            event.creator?.rank === "newbie" && (
-              <View className="bg-warning/10 rounded-xl border border-warning/30 p-4 flex-row items-start gap-3 mb-6">
-                <Ionicons name="alert-circle" size={20} color="#FFC107" />
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-warning mb-1">
-                    Unbestätigtes Event
-                  </Text>
-                  <Text className="text-xs text-text-secondary">
-                    Dieses Event wurde von einem neuen Nutzer erstellt. Details
-                    könnten ungenau sein.
-                  </Text>
-                </View>
+          {event.source_type === "community" && event.creator?.rank === "newbie" && (
+            <View className="bg-warning/10 rounded-xl border border-warning/30 p-4 flex-row items-start gap-3 mb-6">
+              <Ionicons name="alert-circle" size={20} color="#FFC107" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-warning mb-1">Unbestätigtes Event</Text>
+                <Text className="text-xs text-text-secondary">
+                  Dieses Event wurde von einem neuen Nutzer erstellt. Details könnten ungenau sein.
+                </Text>
               </View>
-            )}
+            </View>
+          )}
 
           {/* Action Buttons */}
           <View className="gap-3">
-            {/* Bin dabei / War dabei — primary action */}
             {isPast ? (
               <TouchableOpacity
                 onPress={() => confirmAttended(event.id)}
                 className="rounded-xl py-4 items-center flex-row justify-center gap-2 bg-success/20 border border-success/40"
               >
                 <Ionicons name="checkmark-circle" size={20} color="#00E676" />
-                <Text className="text-success font-bold text-base">
-                  War dabei!
-                </Text>
+                <Text className="text-success font-bold text-base">War dabei!</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
                 onPress={() => toggleGoing(event.id)}
                 className={`rounded-xl py-4 items-center flex-row justify-center gap-2 ${
-                  isGoing
-                    ? "bg-secondary/20 border border-secondary/40"
-                    : "bg-secondary"
+                  isGoing ? "bg-secondary/20 border border-secondary/40" : "bg-secondary"
                 }`}
               >
-                <Ionicons
-                  name={isGoing ? "people" : "people-outline"}
-                  size={20}
-                  color={isGoing ? "#00D2FF" : "#FFFFFF"}
-                />
-                <Text
-                  className={`font-bold text-base ${
-                    isGoing ? "text-secondary" : "text-white"
-                  }`}
-                >
+                <Ionicons name={isGoing ? "people" : "people-outline"} size={20} color={isGoing ? "#00D2FF" : "#FFFFFF"} />
+                <Text className={`font-bold text-base ${isGoing ? "text-secondary" : "text-white"}`}>
                   {isGoing ? `Dabei! (${event.going_count})` : `Bin dabei! (${event.going_count})`}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* Save */}
             <TouchableOpacity
               onPress={() => toggleSave(event.id)}
               className={`rounded-xl py-4 items-center flex-row justify-center gap-2 ${
                 isSaved ? "bg-card border border-primary" : "bg-primary"
               }`}
             >
-              <Ionicons
-                name={isSaved ? "bookmark" : "bookmark-outline"}
-                size={18}
-                color="#FFFFFF"
-              />
+              <Ionicons name={isSaved ? "bookmark" : "bookmark-outline"} size={18} color="#FFFFFF" />
               <Text className="text-white font-bold text-base">
                 {isSaved ? "Gespeichert" : "Event merken"}
               </Text>
             </TouchableOpacity>
 
-            {/* Report */}
             <TouchableOpacity className="bg-card border border-border rounded-xl py-4 items-center flex-row justify-center gap-2">
               <Ionicons name="flag-outline" size={18} color="#FF5252" />
-              <Text className="text-danger font-medium text-sm">
-                Event melden
-              </Text>
+              <Text className="text-danger font-medium text-sm">Event melden</Text>
             </TouchableOpacity>
           </View>
         </View>

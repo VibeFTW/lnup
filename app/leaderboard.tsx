@@ -47,11 +47,13 @@ function PodiumUser({ profile, position }: { profile: Profile; position: 1 | 2 |
   );
 }
 
-function LeaderboardRow({ profile, position, isCurrentUser }: { profile: Profile; position: number; isCurrentUser: boolean }) {
+function LeaderboardRow({ profile, position, isCurrentUser, onPress }: { profile: Profile; position: number; isCurrentUser: boolean; onPress: () => void }) {
   const rank = getRankForScore(profile.trust_score);
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
       className={`flex-row items-center mx-4 px-4 py-3 rounded-xl mb-2 ${
         isCurrentUser ? "border-2" : "bg-card border border-border"
       }`}
@@ -80,7 +82,7 @@ function LeaderboardRow({ profile, position, isCurrentUser }: { profile: Profile
       <Text className="text-base font-bold text-text-primary">
         {profile.trust_score.toLocaleString("de-DE")}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -140,6 +142,7 @@ export default function LeaderboardScreen() {
             profile={item}
             position={index + 4}
             isCurrentUser={currentUser?.id === item.id}
+            onPress={() => router.push(`/user/${item.id}`)}
           />
         )}
         contentContainerStyle={{ paddingBottom: 100 }}

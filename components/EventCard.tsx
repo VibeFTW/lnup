@@ -62,13 +62,16 @@ export function EventCard({ event, onToggleGoing, isGoing }: EventCardProps) {
           <View className="flex-row items-center gap-2 flex-1 flex-wrap">
             <TrustBadge sourceType={event.source_type} />
             {event.creator && (
-              <View className="flex-row items-center gap-1.5">
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); router.push(`/user/${event.creator!.id}`); }}
+                className="flex-row items-center gap-1.5"
+              >
                 <RankBadge score={event.creator.trust_score} />
                 <Text className="text-xs text-text-muted">
                   · {event.creator.display_name}
                   {event.creator.trust_score > 0 && ` (${event.creator.trust_score})`}
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
           </View>
           {isFreeEvent(event.price_info) && (
