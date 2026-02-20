@@ -1,35 +1,54 @@
-import { View, Text, FlatList, RefreshControl } from "react-native";
+import { View, Text, FlatList, RefreshControl, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import { EventCard } from "@/components/EventCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { DateFilter } from "@/components/DateFilter";
+import { CitySelector } from "@/components/CitySelector";
 import { useEventStore } from "@/stores/eventStore";
 import { useFilterStore } from "@/stores/filterStore";
 import { matchesDateFilter } from "@/lib/utils";
 import { COLORS } from "@/lib/constants";
+import type { EventCategory } from "@/types";
 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const events = useEventStore((s) => s.events);
   const fetchEvents = useEventStore((s) => s.fetchEvents);
+  const toggleGoing = useEventStore((s) => s.toggleGoing);
+  const goingIds = useEventStore((s) => s.goingEventIds);
   const { dateFilter, categoryFilter, setDateFilter, setCategoryFilter, city } =
     useFilterStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+
+  const activeEvents = useMemo(() => {
+    return events.filter((e) => e.status === "active");
+  }, [events]);
 
   const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
+    return activeEvents.filter((event) => {
       if (!matchesDateFilter(event.event_date, dateFilter)) return false;
       if (categoryFilter && event.category !== categoryFilter) return false;
-      return event.status === "active";
+      return true;
     });
-  }, [events, dateFilter, categoryFilter]);
+  }, [activeEvents, dateFilter, categoryFilter]);
 
-  const onRefresh = async () => {
+  const eventCounts = useMemo(() => {
+    const counts: Partial<Record<EventCategory, number>> = {};
+    for (const event of activeEvents) {
+      if (!matchesDateFilter(event.event_date, dateFilter)) continue;
+      counts[event.category] = (counts[event.category] ?? 0) + 1;
+    }
+    return counts;
+  }, [activeEvents, dateFilter]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchEvents();
     setRefreshing(false);
-  };
+  }, [fetchEvents]);
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -40,9 +59,14 @@ export default function FeedScreen() {
         </Text>
         <View className="flex-row items-center justify-between">
           <Text className="text-2xl font-bold text-text-primary">LNUP</Text>
-          <View className="flex-row items-center gap-1 bg-card rounded-full px-3 py-1.5">
-            <Text className="text-xs text-text-secondary">📍 {city}</Text>
-          </View>
+          <TouchableOpacity
+            onPress={() => setCityModalVisible(true)}
+            className="flex-row items-center gap-1 bg-card rounded-full px-3 py-1.5 border border-border"
+          >
+            <Ionicons name="location" size={12} color="#6C5CE7" />
+            <Text className="text-xs text-text-secondary">{city}</Text>
+            <Ionicons name="chevron-down" size={12} color="#6B6B80" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -53,14 +77,24 @@ export default function FeedScreen() {
 
       {/* Category Filter */}
       <View className="mb-3">
-        <CategoryFilter selected={categoryFilter} onSelect={setCategoryFilter} />
+        <CategoryFilter
+          selected={categoryFilter}
+          onSelect={setCategoryFilter}
+          eventCounts={eventCounts}
+        />
       </View>
 
       {/* Event List */}
       <FlatList
         data={filteredEvents}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <EventCard event={item} />}
+        renderItem={({ item }) => (
+          <EventCard
+            event={item}
+            onToggleGoing={toggleGoing}
+            isGoing={goingIds.has(item.id)}
+          />
+        )}
         contentContainerStyle={{ paddingBottom: 20 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -81,6 +115,12 @@ export default function FeedScreen() {
             </Text>
           </View>
         }
+      />
+
+      {/* City Selector Modal */}
+      <CitySelector
+        visible={cityModalVisible}
+        onClose={() => setCityModalVisible(false)}
       />
     </View>
   );

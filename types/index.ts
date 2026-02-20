@@ -34,6 +34,8 @@ export type PhotoStatus = "pending" | "approved" | "rejected";
 
 export type ReportReason = "fake" | "wrong_info" | "spam" | "duplicate";
 
+export type AttendanceStatus = "going" | "attended" | "cancelled";
+
 export interface Profile {
   id: string;
   username: string;
@@ -96,9 +98,11 @@ export interface Event {
   image_url: string | null;
   created_at: string;
   saves_count: number;
+  going_count: number;
   confirmations_count: number;
   photos_count: number;
   is_saved?: boolean;
+  is_going?: boolean;
 }
 
 export interface EventPhoto {
@@ -124,7 +128,7 @@ export interface EventConfirmation {
   id: string;
   event_id: string;
   user_id: string;
-  attended: boolean;
+  status: AttendanceStatus;
   created_at: string;
 }
 
@@ -150,6 +154,8 @@ export interface Category {
   id: EventCategory;
   label: string;
   icon: string;
+  gradientStart: string;
+  gradientEnd: string;
 }
 
 export type DateFilter = "heute" | "morgen" | "wochenende" | "woche" | "alle";

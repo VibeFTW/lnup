@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEventStore } from "@/stores/eventStore";
 import { TrustBadge } from "@/components/TrustBadge";
 import { RankBadge } from "@/components/RankBadge";
+import { EventCover } from "@/components/EventCover";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryLabel, getCategoryIcon } from "@/lib/categories";
 
@@ -14,7 +15,10 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const event = useEventStore((s) => s.getEventById(id));
   const toggleSave = useEventStore((s) => s.toggleSave);
+  const toggleGoing = useEventStore((s) => s.toggleGoing);
+  const confirmAttended = useEventStore((s) => s.confirmAttended);
   const savedIds = useEventStore((s) => s.savedEventIds);
+  const goingIds = useEventStore((s) => s.goingEventIds);
 
   if (!event) {
     return (
@@ -28,21 +32,28 @@ export default function EventDetailScreen() {
   }
 
   const isSaved = savedIds.has(event.id);
+  const isGoing = goingIds.has(event.id);
+  const isPast = new Date(event.event_date) < new Date(new Date().toDateString());
 
   return (
-    <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3">
+    <View className="flex-1 bg-background">
+      {/* Floating Header (over cover image) */}
+      <View
+        className="absolute top-0 left-0 right-0 z-10 flex-row items-center justify-between px-4 py-3"
+        style={{ paddingTop: insets.top }}
+      >
         <TouchableOpacity
           onPress={() => router.back()}
-          className="w-10 h-10 rounded-full bg-card items-center justify-center"
+          className="w-10 h-10 rounded-full items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
         >
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <View className="flex-row gap-2">
           <TouchableOpacity
             onPress={() => toggleSave(event.id)}
-            className="w-10 h-10 rounded-full bg-card items-center justify-center"
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
           >
             <Ionicons
               name={isSaved ? "bookmark" : "bookmark-outline"}
@@ -50,14 +61,20 @@ export default function EventDetailScreen() {
               color={isSaved ? "#6C5CE7" : "#FFFFFF"}
             />
           </TouchableOpacity>
-          <TouchableOpacity className="w-10 h-10 rounded-full bg-card items-center justify-center">
+          <TouchableOpacity
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
             <Ionicons name="share-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="px-4 pb-8">
+        {/* Cover */}
+        <EventCover category={event.category} imageUrl={event.image_url} size="detail" />
+
+        <View className="px-4 pb-8 -mt-4 rounded-t-3xl bg-background pt-5">
           {/* Trust Badge + Creator */}
           <View className="flex-row items-center gap-2 mb-3">
             <TrustBadge sourceType={event.source_type} />
@@ -95,7 +112,6 @@ export default function EventDetailScreen() {
 
           {/* Info Cards */}
           <View className="gap-3 mb-6">
-            {/* Venue */}
             <View className="bg-card rounded-xl border border-border p-4 flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
                 <Ionicons name="location" size={20} color="#6C5CE7" />
@@ -111,7 +127,6 @@ export default function EventDetailScreen() {
               <Ionicons name="navigate-outline" size={18} color="#A0A0B8" />
             </View>
 
-            {/* Date & Time */}
             <View className="bg-card rounded-xl border border-border p-4 flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
                 <Ionicons name="calendar" size={20} color="#6C5CE7" />
@@ -127,7 +142,6 @@ export default function EventDetailScreen() {
               </View>
             </View>
 
-            {/* Price */}
             {event.price_info && (
               <View className="bg-card rounded-xl border border-border p-4 flex-row items-center gap-3">
                 <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
@@ -141,7 +155,14 @@ export default function EventDetailScreen() {
           </View>
 
           {/* Stats */}
-          <View className="flex-row gap-3 mb-6">
+          <View className="flex-row gap-2 mb-6">
+            <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
+              <Ionicons name="people" size={18} color="#00D2FF" />
+              <Text className="text-lg font-bold text-text-primary mt-1">
+                {event.going_count}
+              </Text>
+              <Text className="text-xs text-text-muted">Dabei</Text>
+            </View>
             <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
               <Ionicons name="bookmark" size={18} color="#6C5CE7" />
               <Text className="text-lg font-bold text-text-primary mt-1">
@@ -157,7 +178,7 @@ export default function EventDetailScreen() {
               <Text className="text-xs text-text-muted">War dabei</Text>
             </View>
             <View className="flex-1 bg-card rounded-xl border border-border p-3 items-center">
-              <Ionicons name="camera" size={18} color="#00D2FF" />
+              <Ionicons name="camera" size={18} color="#FF6B9D" />
               <Text className="text-lg font-bold text-text-primary mt-1">
                 {event.photos_count}
               </Text>
@@ -165,7 +186,7 @@ export default function EventDetailScreen() {
             </View>
           </View>
 
-          {/* Community warning for unverified events */}
+          {/* Community warning */}
           {event.source_type === "community" &&
             event.creator?.rank === "newbie" && (
               <View className="bg-warning/10 rounded-xl border border-warning/30 p-4 flex-row items-start gap-3 mb-6">
@@ -184,6 +205,42 @@ export default function EventDetailScreen() {
 
           {/* Action Buttons */}
           <View className="gap-3">
+            {/* Bin dabei / War dabei — primary action */}
+            {isPast ? (
+              <TouchableOpacity
+                onPress={() => confirmAttended(event.id)}
+                className="rounded-xl py-4 items-center flex-row justify-center gap-2 bg-success/20 border border-success/40"
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#00E676" />
+                <Text className="text-success font-bold text-base">
+                  War dabei!
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => toggleGoing(event.id)}
+                className={`rounded-xl py-4 items-center flex-row justify-center gap-2 ${
+                  isGoing
+                    ? "bg-secondary/20 border border-secondary/40"
+                    : "bg-secondary"
+                }`}
+              >
+                <Ionicons
+                  name={isGoing ? "people" : "people-outline"}
+                  size={20}
+                  color={isGoing ? "#00D2FF" : "#FFFFFF"}
+                />
+                <Text
+                  className={`font-bold text-base ${
+                    isGoing ? "text-secondary" : "text-white"
+                  }`}
+                >
+                  {isGoing ? `Bin dabei! (${event.going_count})` : `Bin dabei! (${event.going_count})`}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Save */}
             <TouchableOpacity
               onPress={() => toggleSave(event.id)}
               className={`rounded-xl py-4 items-center flex-row justify-center gap-2 ${
@@ -200,6 +257,7 @@ export default function EventDetailScreen() {
               </Text>
             </TouchableOpacity>
 
+            {/* Report */}
             <TouchableOpacity className="bg-card border border-border rounded-xl py-4 items-center flex-row justify-center gap-2">
               <Ionicons name="flag-outline" size={18} color="#FF5252" />
               <Text className="text-danger font-medium text-sm">

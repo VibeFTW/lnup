@@ -137,7 +137,7 @@ CREATE TABLE public.event_confirmations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-  attended BOOLEAN NOT NULL DEFAULT true,
+  status TEXT NOT NULL DEFAULT 'going' CHECK (status IN ('going', 'attended', 'cancelled')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(event_id, user_id)
 );
@@ -217,28 +217,42 @@ CREATE TRIGGER trg_event_created
   AFTER INSERT ON public.events
   FOR EACH ROW EXECUTE FUNCTION public.on_event_created();
 
--- Award points when attendance is confirmed
-CREATE OR REPLACE FUNCTION public.on_confirmation_created()
+-- Award points when attendance is confirmed (only on 'attended', not 'going')
+CREATE OR REPLACE FUNCTION public.on_confirmation_changed()
 RETURNS TRIGGER AS $$
 DECLARE
   event_creator UUID;
+  was_going BOOLEAN;
 BEGIN
-  -- Give 1 point to the person confirming
-  PERFORM public.add_trust_points(NEW.user_id, 1);
+  -- On INSERT with 'going' status: no points awarded
+  IF TG_OP = 'INSERT' AND NEW.status = 'going' THEN
+    RETURN NEW;
+  END IF;
 
-  -- Give 2 points to the event creator
-  SELECT created_by INTO event_creator FROM public.events WHERE id = NEW.event_id;
-  IF event_creator IS NOT NULL THEN
-    PERFORM public.add_trust_points(event_creator, 2);
+  -- On UPDATE to 'attended': award points
+  IF (TG_OP = 'INSERT' AND NEW.status = 'attended') OR
+     (TG_OP = 'UPDATE' AND NEW.status = 'attended' AND OLD.status != 'attended') THEN
+
+    -- Check if they had 'going' before -> bonus for follow-through
+    was_going := TG_OP = 'UPDATE' AND OLD.status = 'going';
+
+    -- Give 1 point (or 2 if they followed through from 'going')
+    PERFORM public.add_trust_points(NEW.user_id, CASE WHEN was_going THEN 2 ELSE 1 END);
+
+    -- Give 2 points to the event creator
+    SELECT created_by INTO event_creator FROM public.events WHERE id = NEW.event_id;
+    IF event_creator IS NOT NULL THEN
+      PERFORM public.add_trust_points(event_creator, 2);
+    END IF;
   END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE TRIGGER trg_confirmation_created
-  AFTER INSERT ON public.event_confirmations
-  FOR EACH ROW EXECUTE FUNCTION public.on_confirmation_created();
+CREATE TRIGGER trg_confirmation_changed
+  AFTER INSERT OR UPDATE ON public.event_confirmations
+  FOR EACH ROW EXECUTE FUNCTION public.on_confirmation_changed();
 
 -- Deduct points when an event is reported
 CREATE OR REPLACE FUNCTION public.on_report_created()
@@ -334,6 +348,7 @@ CREATE OR REPLACE VIEW public.events_with_counts AS
 SELECT
   e.*,
   COALESCE(s.saves_count, 0) AS saves_count,
+  COALESCE(g.going_count, 0) AS going_count,
   COALESCE(c.confirmations_count, 0) AS confirmations_count,
   COALESCE(p.photos_count, 0) AS photos_count
 FROM public.events e
@@ -341,7 +356,10 @@ LEFT JOIN LATERAL (
   SELECT COUNT(*)::int AS saves_count FROM public.event_saves WHERE event_id = e.id
 ) s ON true
 LEFT JOIN LATERAL (
-  SELECT COUNT(*)::int AS confirmations_count FROM public.event_confirmations WHERE event_id = e.id
+  SELECT COUNT(*)::int AS going_count FROM public.event_confirmations WHERE event_id = e.id AND status = 'going'
+) g ON true
+LEFT JOIN LATERAL (
+  SELECT COUNT(*)::int AS confirmations_count FROM public.event_confirmations WHERE event_id = e.id AND status = 'attended'
 ) c ON true
 LEFT JOIN LATERAL (
   SELECT COUNT(*)::int AS photos_count FROM public.event_photos WHERE event_id = e.id AND status = 'approved'

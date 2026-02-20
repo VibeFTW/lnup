@@ -1,13 +1,19 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores/authStore";
+import { useEventStore } from "@/stores/eventStore";
 import { getRankForScore, getNextRank, getProgressToNextRank } from "@/lib/ranks";
+import { formatEventDate, formatTime } from "@/lib/utils";
+import { getCategoryIcon } from "@/lib/categories";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const getEventsByCreator = useEventStore((s) => s.getEventsByCreator);
 
   if (!user) {
     return (
@@ -32,6 +38,7 @@ export default function ProfileScreen() {
   const rank = getRankForScore(user.trust_score);
   const nextRank = getNextRank(rank.id);
   const progress = getProgressToNextRank(user.trust_score);
+  const myEvents = getEventsByCreator(user.id);
 
   return (
     <ScrollView
@@ -42,7 +49,6 @@ export default function ProfileScreen() {
       {/* Profile Header */}
       <View className="px-4 pt-4 pb-6">
         <View className="items-center">
-          {/* Avatar */}
           <View className="w-20 h-20 rounded-full bg-card border-2 border-primary items-center justify-center mb-3">
             <Text className="text-3xl">{rank.icon}</Text>
           </View>
@@ -52,7 +58,6 @@ export default function ProfileScreen() {
           </Text>
           <Text className="text-sm text-text-muted mb-2">@{user.username}</Text>
 
-          {/* Rank Badge */}
           <View
             className="rounded-full px-4 py-1.5 mb-4"
             style={{ backgroundColor: rank.color + "20" }}
@@ -62,13 +67,11 @@ export default function ProfileScreen() {
             </Text>
           </View>
 
-          {/* Points */}
           <Text className="text-3xl font-bold text-text-primary mb-1">
             {user.trust_score}
           </Text>
           <Text className="text-sm text-text-secondary mb-4">Punkte</Text>
 
-          {/* Progress Bar */}
           {nextRank && (
             <View className="w-full px-4">
               <View className="flex-row justify-between mb-1.5">
@@ -115,6 +118,63 @@ export default function ProfileScreen() {
           </Text>
           <Text className="text-xs text-text-secondary mt-1">Reports</Text>
         </View>
+      </View>
+
+      {/* Meine Events */}
+      <View className="mx-4 mb-6">
+        <Text className="text-sm font-semibold text-text-primary mb-3">
+          Meine Events
+        </Text>
+        {myEvents.length === 0 ? (
+          <TouchableOpacity
+            onPress={() => router.push("/(tabs)/create")}
+            className="bg-card rounded-xl border border-border border-dashed p-6 items-center"
+          >
+            <Ionicons name="add-circle-outline" size={32} color="#6C5CE7" />
+            <Text className="text-sm text-text-secondary mt-2">
+              Erstelle dein erstes Event
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View className="gap-2">
+            {myEvents.map((event) => (
+              <TouchableOpacity
+                key={event.id}
+                onPress={() => router.push(`/event/${event.id}`)}
+                className="bg-card rounded-xl border border-border p-3 flex-row items-center gap-3"
+              >
+                <View
+                  className="w-10 h-10 rounded-lg items-center justify-center"
+                  style={{ backgroundColor: "#6C5CE7" + "20" }}
+                >
+                  <Ionicons
+                    name={getCategoryIcon(event.category) as any}
+                    size={20}
+                    color="#6C5CE7"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-text-primary" numberOfLines={1}>
+                    {event.title}
+                  </Text>
+                  <Text className="text-xs text-text-muted">
+                    {formatEventDate(event.event_date)} · {formatTime(event.time_start)}
+                  </Text>
+                </View>
+                <View className="items-end gap-0.5">
+                  <View className="flex-row items-center gap-1">
+                    <Ionicons name="people-outline" size={12} color="#00D2FF" />
+                    <Text className="text-xs text-secondary">{event.going_count}</Text>
+                  </View>
+                  <View className="flex-row items-center gap-1">
+                    <Ionicons name="bookmark-outline" size={12} color="#6B6B80" />
+                    <Text className="text-xs text-text-muted">{event.saves_count}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Verification Status */}
