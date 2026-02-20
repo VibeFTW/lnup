@@ -1,7 +1,6 @@
 module.exports = function (api) {
+  const isWeb = process.env.EXPO_OS === "web";
   api.cache(true);
-
-  const isWeb = api.caller((caller) => caller?.platform === "web");
 
   return {
     presets: [
@@ -10,7 +9,6 @@ module.exports = function (api) {
         {
           jsxImportSource: "nativewind",
           lazyImports: true,
-          web: { unstable_transformProfile: "hermes-stable" },
         },
       ],
       "nativewind/babel",
