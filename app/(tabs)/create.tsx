@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useToastStore } from "@/stores/toastStore";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
@@ -76,9 +77,7 @@ export default function CreateEventScreen() {
       Alert.alert("Fehlende Angaben", "Bitte fülle alle Pflichtfelder aus.");
       return;
     }
-    Alert.alert("Event erstellt!", "Dein Event wurde erfolgreich erstellt.", [
-      { text: "OK" },
-    ]);
+    useToastStore.getState().showToast("Event erfolgreich erstellt!", "success");
   };
 
   return (

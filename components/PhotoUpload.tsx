@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { useToastStore } from "@/stores/toastStore";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +17,7 @@ export function PhotoUpload({ eventId }: PhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const uploadPhoto = useEventStore((s) => s.uploadPhoto);
   const user = useAuthStore((s) => s.user);
+  const showToast = useToastStore((s) => s.showToast);
 
   const pickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -52,10 +54,7 @@ export function PhotoUpload({ eventId }: PhotoUploadProps) {
     setPreviewUri(null);
     setUploading(false);
 
-    Alert.alert(
-      "Foto eingereicht",
-      "Dein Foto wird angezeigt, sobald der Veranstalter es freigibt."
-    );
+    showToast("Foto eingereicht — wartet auf Freigabe", "success");
   };
 
   if (previewUri) {

@@ -14,7 +14,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const isAuthLoading = useAuthStore((s) => s.isLoading);
-  const logout = useAuthStore((s) => s.logout);
   const getEventsByCreator = useEventStore((s) => s.getEventsByCreator);
 
   if (isAuthLoading && !user) {
@@ -59,8 +58,18 @@ export default function ProfileScreen() {
       contentContainerStyle={{ paddingTop: insets.top }}
       showsVerticalScrollIndicator={false}
     >
+      {/* Settings Icon */}
+      <View className="flex-row justify-end px-4 pt-3">
+        <TouchableOpacity
+          onPress={() => router.push("/settings")}
+          className="w-10 h-10 rounded-full bg-card border border-border items-center justify-center"
+        >
+          <Ionicons name="settings-outline" size={18} color="#A0A0B8" />
+        </TouchableOpacity>
+      </View>
+
       {/* Profile Header */}
-      <View className="px-4 pt-4 pb-6">
+      <View className="px-4 pb-6">
         <View className="items-center">
           <View className="w-20 h-20 rounded-full bg-card border-2 border-primary items-center justify-center mb-3">
             <Text className="text-3xl">{rank.icon}</Text>
@@ -233,16 +242,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Logout */}
-      <View className="mx-4 mb-12">
-        <TouchableOpacity
-          onPress={logout}
-          className="bg-card rounded-xl border border-border p-4 flex-row items-center justify-center gap-2"
-        >
-          <Ionicons name="log-out-outline" size={20} color="#FF5252" />
-          <Text className="text-sm font-medium text-danger">Abmelden</Text>
-        </TouchableOpacity>
-      </View>
+      <View className="mb-12" />
     </ScrollView>
   );
 }
