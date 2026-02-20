@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { EventCard } from "@/components/EventCard";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { DateFilter } from "@/components/DateFilter";
 import { CitySelector } from "@/components/CitySelector";
@@ -18,6 +19,7 @@ export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const events = useEventStore((s) => s.events);
+  const isLoading = useEventStore((s) => s.isLoading);
   const fetchEvents = useEventStore((s) => s.fetchEvents);
   const toggleGoing = useEventStore((s) => s.toggleGoing);
   const goingIds = useEventStore((s) => s.goingEventIds);
@@ -123,15 +125,19 @@ export default function FeedScreen() {
           />
         }
         ListEmptyComponent={
-          <View className="items-center justify-center py-20 px-8">
-            <Text className="text-4xl mb-4">🔍</Text>
-            <Text className="text-lg font-semibold text-text-primary text-center mb-2">
-              Keine Events gefunden
-            </Text>
-            <Text className="text-sm text-text-secondary text-center">
-              Versuch andere Filter oder schau später nochmal vorbei.
-            </Text>
-          </View>
+          isLoading ? (
+            <SkeletonCard count={3} />
+          ) : (
+            <View className="items-center justify-center py-20 px-8">
+              <Text className="text-4xl mb-4">🔍</Text>
+              <Text className="text-lg font-semibold text-text-primary text-center mb-2">
+                Keine Events gefunden
+              </Text>
+              <Text className="text-sm text-text-secondary text-center">
+                Versuch andere Filter oder schau später nochmal vorbei.
+              </Text>
+            </View>
+          )
         }
       />
 

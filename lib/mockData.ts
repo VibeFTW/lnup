@@ -1,4 +1,4 @@
-import type { Event, Profile, Venue } from "@/types";
+import type { Event, EventPhoto, Profile, Venue } from "@/types";
 
 export const MOCK_VENUES: Venue[] = [
   {
@@ -440,5 +440,74 @@ export const MOCK_EVENTS: Event[] = [
     photos_count: 0,
     is_saved: false,
     is_going: false,
+  },
+];
+
+export const MOCK_PHOTOS: EventPhoto[] = [
+  {
+    id: "p1",
+    event_id: "e1",
+    uploaded_by: "u3",
+    uploader: MOCK_PROFILES[2],
+    image_url: "https://picsum.photos/seed/lnup1/800/600",
+    thumbnail_url: "https://picsum.photos/seed/lnup1/200/150",
+    status: "approved",
+    approved_by: "u2",
+    created_at: "2026-02-15T22:30:00Z",
+  },
+  {
+    id: "p2",
+    event_id: "e1",
+    uploaded_by: "u2",
+    uploader: MOCK_PROFILES[1],
+    image_url: "https://picsum.photos/seed/lnup2/800/600",
+    thumbnail_url: "https://picsum.photos/seed/lnup2/200/150",
+    status: "approved",
+    approved_by: "u2",
+    created_at: "2026-02-15T23:00:00Z",
+  },
+  {
+    id: "p3",
+    event_id: "e1",
+    uploaded_by: "u4",
+    uploader: MOCK_PROFILES[3],
+    image_url: "https://picsum.photos/seed/lnup3/800/600",
+    thumbnail_url: "https://picsum.photos/seed/lnup3/200/150",
+    status: "pending",
+    approved_by: null,
+    created_at: "2026-02-16T00:15:00Z",
+  },
+  {
+    id: "p4",
+    event_id: "e2",
+    uploaded_by: "u3",
+    uploader: MOCK_PROFILES[2],
+    image_url: "https://picsum.photos/seed/lnup4/800/600",
+    thumbnail_url: "https://picsum.photos/seed/lnup4/200/150",
+    status: "approved",
+    approved_by: "u1",
+    created_at: "2026-02-14T20:30:00Z",
+  },
+  {
+    id: "p5",
+    event_id: "e2",
+    uploaded_by: "u2",
+    uploader: MOCK_PROFILES[1],
+    image_url: "https://picsum.photos/seed/lnup5/800/600",
+    thumbnail_url: "https://picsum.photos/seed/lnup5/200/150",
+    status: "approved",
+    approved_by: "u1",
+    created_at: "2026-02-14T21:00:00Z",
+  },
+  {
+    id: "p6",
+    event_id: "e1",
+    uploaded_by: "u5",
+    uploader: MOCK_PROFILES[4],
+    image_url: "https://picsum.photos/seed/lnup6/800/600",
+    thumbnail_url: "https://picsum.photos/seed/lnup6/200/150",
+    status: "pending",
+    approved_by: null,
+    created_at: "2026-02-16T01:00:00Z",
   },
 ];

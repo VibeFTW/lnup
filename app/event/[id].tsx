@@ -3,9 +3,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEventStore } from "@/stores/eventStore";
+import { useAuthStore } from "@/stores/authStore";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import { TrustBadge } from "@/components/TrustBadge";
 import { RankBadge } from "@/components/RankBadge";
 import { EventCover } from "@/components/EventCover";
+import { PhotoGallery } from "@/components/PhotoGallery";
+import { PhotoUpload } from "@/components/PhotoUpload";
+import { PhotoModeration } from "@/components/PhotoModeration";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryLabel, getCategoryIcon } from "@/lib/categories";
 
@@ -19,14 +24,21 @@ export default function EventDetailScreen() {
   const confirmAttended = useEventStore((s) => s.confirmAttended);
   const savedIds = useEventStore((s) => s.savedEventIds);
   const goingIds = useEventStore((s) => s.goingEventIds);
+  const getPhotosForEvent = useEventStore((s) => s.getPhotosForEvent);
+  const currentUser = useAuthStore((s) => s.user);
 
   if (!event) {
     return (
-      <View
-        className="flex-1 bg-background items-center justify-center"
-        style={{ paddingTop: insets.top }}
-      >
-        <Text className="text-text-secondary">Event nicht gefunden</Text>
+      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+        <View className="flex-row items-center px-4 py-3">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            className="w-10 h-10 rounded-full bg-card items-center justify-center"
+          >
+            <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+        <SkeletonCard count={1} />
       </View>
     );
   }
@@ -34,6 +46,8 @@ export default function EventDetailScreen() {
   const isSaved = savedIds.has(event.id);
   const isGoing = goingIds.has(event.id);
   const isPast = new Date(event.event_date) < new Date(new Date().toDateString());
+  const approvedPhotos = getPhotosForEvent(event.id);
+  const isHost = currentUser?.id === event.created_by;
 
   return (
     <View className="flex-1 bg-background">
@@ -192,6 +206,15 @@ export default function EventDetailScreen() {
               <Text className="text-xs text-text-muted">Fotos</Text>
             </View>
           </View>
+
+          {/* Photo Gallery */}
+          <PhotoGallery photos={approvedPhotos} />
+
+          {/* Host: Photo Moderation */}
+          {isHost && <PhotoModeration eventId={event.id} />}
+
+          {/* Photo Upload */}
+          <PhotoUpload eventId={event.id} />
 
           {/* Community warning */}
           {event.source_type === "community" &&

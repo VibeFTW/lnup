@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores/authStore";
 import { useEventStore } from "@/stores/eventStore";
+import { SkeletonProfile } from "@/components/SkeletonProfile";
 import { getRankForScore, getNextRank, getProgressToNextRank } from "@/lib/ranks";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/categories";
@@ -12,8 +13,17 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const isAuthLoading = useAuthStore((s) => s.isLoading);
   const logout = useAuthStore((s) => s.logout);
   const getEventsByCreator = useEventStore((s) => s.getEventsByCreator);
+
+  if (isAuthLoading && !user) {
+    return (
+      <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
+        <SkeletonProfile />
+      </View>
+    );
+  }
 
   if (!user) {
     return (
