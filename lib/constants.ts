@@ -35,6 +35,7 @@ export const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?
 export const GEMINI_API_KEY = process.env.EXPO_GEMINI_API_KEY ?? "";
 export const EVENTBRITE_API_KEY = process.env.EXPO_PUBLIC_EVENTBRITE_API_KEY ?? "";
 export const TICKETMASTER_API_KEY = process.env.EXPO_PUBLIC_TICKETMASTER_API_KEY ?? "";
+export const SEATGEEK_CLIENT_ID = process.env.EXPO_PUBLIC_SEATGEEK_CLIENT_ID ?? "";
 
 export const REGION_CENTER = {
   latitude: 48.8317,

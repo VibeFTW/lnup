@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Event, EventPhoto, EventMember } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { fetchExternalEvents } from "@/lib/eventApis";
-import { EVENTBRITE_API_KEY, TICKETMASTER_API_KEY } from "@/lib/constants";
+import { EVENTBRITE_API_KEY, TICKETMASTER_API_KEY, SEATGEEK_CLIENT_ID, GEMINI_API_KEY } from "@/lib/constants";
 import { getRankForScore } from "@/lib/ranks";
 import { scheduleEventReminder, cancelScheduledNotification } from "@/lib/notifications";
 import { useToastStore } from "./toastStore";
@@ -165,7 +165,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       set({ events, savedEventIds: savedIds, goingEventIds: goingIds });
 
-      const hasApiKeys = EVENTBRITE_API_KEY || TICKETMASTER_API_KEY;
+      const hasApiKeys = EVENTBRITE_API_KEY || TICKETMASTER_API_KEY || SEATGEEK_CLIENT_ID || GEMINI_API_KEY;
       if (hasApiKeys && city) {
         try {
           const externalEvents = await fetchExternalEvents(city);

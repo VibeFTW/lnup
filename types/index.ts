@@ -23,6 +23,8 @@ export type EventCategory =
 export type EventSourceType =
   | "api_eventbrite"
   | "api_ticketmaster"
+  | "api_seatgeek"
+  | "ai_discovered"
   | "ai_scraped"
   | "platform"
   | "verified_organizer"

@@ -66,6 +66,49 @@ const TICKETMASTER_GENRE_MAP: Record<string, EventCategory> = {
   "Motorsports/Racing": "sports",
 };
 
+const SEATGEEK_TYPE_MAP: Record<string, EventCategory> = {
+  "concert": "concert",
+  "music_festival": "festival",
+  "theater": "art",
+  "comedy": "art",
+  "dance_performance_tour": "art",
+  "classical": "concert",
+  "opera": "art",
+  "literary": "art",
+  "film": "art",
+  "circus": "family",
+  "family": "family",
+  "sports": "sports",
+  "soccer": "sports",
+  "football": "sports",
+  "basketball": "sports",
+  "ice_hockey": "sports",
+  "tennis": "sports",
+  "baseball": "sports",
+  "golf": "sports",
+  "boxing": "sports",
+  "mma": "sports",
+  "wrestling": "sports",
+  "motorsports": "sports",
+  "minor_league_sports": "sports",
+  "nfl": "sports",
+  "nba": "sports",
+  "mlb": "sports",
+  "nhl": "sports",
+  "ncaa_football": "sports",
+  "ncaa_basketball": "sports",
+  "food_and_drink": "food_drink",
+  "nightlife": "nightlife",
+  "club": "nightlife",
+  "festival": "festival",
+};
+
+export function mapSeatgeekType(typeName: string | null | undefined): EventCategory {
+  if (!typeName) return "other";
+  const normalized = typeName.toLowerCase().replace(/[\s-]/g, "_");
+  return SEATGEEK_TYPE_MAP[normalized] ?? "other";
+}
+
 export function mapEventbriteCategory(categoryId: string | null | undefined): EventCategory {
   if (!categoryId) return "other";
   return EVENTBRITE_CATEGORY_MAP[categoryId] ?? "other";
