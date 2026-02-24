@@ -1,18 +1,18 @@
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo } from "react";
-import { MOCK_PROFILES } from "@/lib/mockData";
+import { useState, useEffect, useMemo } from "react";
+import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/stores/authStore";
 import { getRankForScore } from "@/lib/ranks";
-import type { Profile } from "@/types";
+import type { Profile, RankId } from "@/types";
 
 function PodiumUser({ profile, position }: { profile: Profile; position: 1 | 2 | 3 }) {
   const rank = getRankForScore(profile.trust_score);
   const isFirst = position === 1;
-  const height = isFirst ? 100 : 72;
   const iconSize = isFirst ? 36 : 28;
+  const height = isFirst ? 100 : 72;
   const positionLabels = { 1: "1.", 2: "2.", 3: "3." };
 
   return (
@@ -90,23 +90,60 @@ export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const currentUser = useAuthStore((s) => s.user);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const sorted = useMemo(() => {
-    return [...MOCK_PROFILES].sort((a, b) => b.trust_score - a.trust_score);
+  useEffect(() => {
+    async function loadLeaderboard() {
+      const { data, error } = await supabase
+        .from("profiles_with_stats")
+        .select("*")
+        .order("trust_score", { ascending: false })
+        .limit(50);
+
+      if (!error && data) {
+        setProfiles(
+          data.map((row: any) => ({
+            id: row.id,
+            username: row.username,
+            display_name: row.display_name,
+            avatar_url: row.avatar_url,
+            role: row.role,
+            trust_score: row.trust_score,
+            rank: (row.rank ?? getRankForScore(row.trust_score).id) as RankId,
+            email_verified: row.email_verified,
+            phone_verified: row.phone_verified,
+            created_at: row.created_at,
+            events_posted: row.events_posted ?? 0,
+            events_confirmed: row.events_confirmed ?? 0,
+            reports_count: row.reports_count ?? 0,
+          }))
+        );
+      }
+      setIsLoading(false);
+    }
+    loadLeaderboard();
   }, []);
 
-  const top3 = sorted.slice(0, 3);
-  const rest = sorted.slice(3);
+  const top3 = profiles.slice(0, 3);
+  const rest = profiles.slice(3);
 
-  const currentUserPosition = (() => {
+  const currentUserPosition = useMemo(() => {
     if (!currentUser) return null;
-    const idx = sorted.findIndex((p) => p.id === currentUser.id);
+    const idx = profiles.findIndex((p) => p.id === currentUser.id);
     return idx >= 0 ? idx + 1 : null;
-  })();
+  }, [profiles, currentUser]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center" style={{ paddingTop: insets.top }}>
+        <ActivityIndicator color="#6C5CE7" size="large" />
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      {/* Header */}
       <View className="flex-row items-center px-4 py-3 gap-3">
         <TouchableOpacity
           onPress={() => router.back()}
@@ -126,14 +163,11 @@ export default function LeaderboardScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <>
-            {/* Podium */}
             <View className="flex-row items-end justify-center px-4 pt-4 pb-2">
               {top3[1] && <PodiumUser profile={top3[1]} position={2} />}
               {top3[0] && <PodiumUser profile={top3[0]} position={1} />}
               {top3[2] && <PodiumUser profile={top3[2]} position={3} />}
             </View>
-
-            {/* Divider */}
             <View className="mx-4 my-4 border-t border-border" />
           </>
         }

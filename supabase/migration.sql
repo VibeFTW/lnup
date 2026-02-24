@@ -42,6 +42,7 @@ CREATE TABLE public.venues (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   address TEXT NOT NULL,
+  city TEXT NOT NULL DEFAULT '',
   lat DOUBLE PRECISION NOT NULL,
   lng DOUBLE PRECISION NOT NULL,
   google_place_id TEXT,
@@ -371,3 +372,45 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
   SELECT COUNT(*)::int AS photos_count FROM public.event_photos WHERE event_id = e.id AND status = 'approved'
 ) p ON true;
+
+-- ============================================================
+-- VIEW: profiles with computed stats
+-- ============================================================
+
+CREATE OR REPLACE VIEW public.profiles_with_stats AS
+SELECT
+  pr.*,
+  public.get_rank(pr.trust_score) AS rank,
+  COALESCE(ep.events_posted, 0) AS events_posted,
+  COALESCE(ec.events_confirmed, 0) AS events_confirmed,
+  COALESCE(er.reports_count, 0) AS reports_count
+FROM public.profiles pr
+LEFT JOIN LATERAL (
+  SELECT COUNT(*)::int AS events_posted FROM public.events WHERE created_by = pr.id
+) ep ON true
+LEFT JOIN LATERAL (
+  SELECT COUNT(*)::int AS events_confirmed FROM public.event_confirmations WHERE user_id = pr.id AND status = 'attended'
+) ec ON true
+LEFT JOIN LATERAL (
+  SELECT COUNT(*)::int AS reports_count FROM public.event_reports WHERE reported_by = pr.id
+) er ON true;
+
+-- ============================================================
+-- ACCOUNT SELF-DELETION
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.delete_own_account()
+RETURNS VOID AS $$
+BEGIN
+  UPDATE public.events SET created_by = NULL WHERE created_by = auth.uid();
+  DELETE FROM auth.users WHERE id = auth.uid();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- STORAGE BUCKET for event photos
+-- ============================================================
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('event-photos', 'event-photos', true)
+ON CONFLICT (id) DO NOTHING;

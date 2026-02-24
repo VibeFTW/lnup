@@ -1,21 +1,60 @@
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { MOCK_PROFILES } from "@/lib/mockData";
+import { supabase } from "@/lib/supabase";
 import { useEventStore } from "@/stores/eventStore";
 import { getRankForScore, getNextRank, getProgressToNextRank } from "@/lib/ranks";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/categories";
-import type { Profile } from "@/types";
+import type { Profile, RankId } from "@/types";
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const getEventsByCreator = useEventStore((s) => s.getEventsByCreator);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const user: Profile | undefined = MOCK_PROFILES.find((p) => p.id === id);
+  useEffect(() => {
+    async function loadProfile() {
+      const { data, error } = await supabase
+        .from("profiles_with_stats")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (!error && data) {
+        setUser({
+          id: data.id,
+          username: data.username,
+          display_name: data.display_name,
+          avatar_url: data.avatar_url,
+          role: data.role,
+          trust_score: data.trust_score,
+          rank: (data.rank ?? getRankForScore(data.trust_score).id) as RankId,
+          email_verified: data.email_verified,
+          phone_verified: data.phone_verified,
+          created_at: data.created_at,
+          events_posted: data.events_posted ?? 0,
+          events_confirmed: data.events_confirmed ?? 0,
+          reports_count: data.reports_count ?? 0,
+        });
+      }
+      setIsLoading(false);
+    }
+    loadProfile();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <View className="flex-1 bg-background items-center justify-center" style={{ paddingTop: insets.top }}>
+        <ActivityIndicator color="#6C5CE7" size="large" />
+      </View>
+    );
+  }
 
   if (!user) {
     return (

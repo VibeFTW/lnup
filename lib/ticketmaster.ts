@@ -94,6 +94,7 @@ export async function fetchTicketmasterEvents(
             address: [tmVenue.address?.line1, tmVenue.city?.name]
               .filter(Boolean)
               .join(", "),
+            city: tmVenue.city?.name ?? city,
             lat: parseFloat(tmVenue.location?.latitude ?? "0"),
             lng: parseFloat(tmVenue.location?.longitude ?? "0"),
             google_place_id: null,

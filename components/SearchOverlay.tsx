@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,12 +11,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useEventStore } from "@/stores/eventStore";
-import { MOCK_PROFILES, MOCK_VENUES } from "@/lib/mockData";
+import { supabase } from "@/lib/supabase";
 import { getRankForScore } from "@/lib/ranks";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/categories";
 import { COLORS } from "@/lib/constants";
-import type { Event, Profile, Venue } from "@/types";
+import type { Event, Profile, Venue, RankId } from "@/types";
 
 type SearchTab = "events" | "venues" | "users";
 
@@ -118,6 +118,49 @@ export function SearchOverlay({ visible, onClose }: SearchOverlayProps) {
   const [activeTab, setActiveTab] = useState<SearchTab>("events");
 
   const q = query.toLowerCase().trim();
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [users, setUsers] = useState<Profile[]>([]);
+
+  useEffect(() => {
+    if (!q) {
+      setVenues([]);
+      setUsers([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      const [venueRes, userRes] = await Promise.all([
+        supabase
+          .from("venues")
+          .select("*")
+          .or(`name.ilike.%${q}%,address.ilike.%${q}%`)
+          .limit(20),
+        supabase
+          .from("profiles_with_stats")
+          .select("*")
+          .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+          .limit(20),
+      ]);
+      setVenues(venueRes.data ?? []);
+      setUsers(
+        (userRes.data ?? []).map((row: any) => ({
+          id: row.id,
+          username: row.username,
+          display_name: row.display_name,
+          avatar_url: row.avatar_url,
+          role: row.role,
+          trust_score: row.trust_score,
+          rank: (row.rank ?? getRankForScore(row.trust_score).id) as RankId,
+          email_verified: row.email_verified,
+          phone_verified: row.phone_verified,
+          created_at: row.created_at,
+          events_posted: row.events_posted ?? 0,
+          events_confirmed: row.events_confirmed ?? 0,
+          reports_count: row.reports_count ?? 0,
+        }))
+      );
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [q]);
 
   const filteredEvents = useMemo(() => {
     if (!q) return [];
@@ -129,21 +172,8 @@ export function SearchOverlay({ visible, onClose }: SearchOverlayProps) {
     );
   }, [events, q]);
 
-  const filteredVenues = useMemo(() => {
-    if (!q) return [];
-    return MOCK_VENUES.filter(
-      (v) => v.name.toLowerCase().includes(q) || v.address.toLowerCase().includes(q)
-    );
-  }, [q]);
-
-  const filteredUsers = useMemo(() => {
-    if (!q) return [];
-    return MOCK_PROFILES.filter(
-      (p) =>
-        p.username.toLowerCase().includes(q) ||
-        p.display_name.toLowerCase().includes(q)
-    );
-  }, [q]);
+  const filteredVenues = venues;
+  const filteredUsers = users;
 
   const counts = {
     events: filteredEvents.length,

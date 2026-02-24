@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useToastStore } from "@/stores/toastStore";
+import { useAuthStore } from "@/stores/authStore";
+import { supabase } from "@/lib/supabase";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
@@ -71,13 +73,107 @@ export default function CreateEventScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const user = useAuthStore((s) => s.user);
+
+  const handleSubmit = async () => {
     Keyboard.dismiss();
     if (!title || !description || !venueName || !eventDate || !timeStart || !category) {
       Alert.alert("Fehlende Angaben", "Bitte fülle alle Pflichtfelder aus.");
       return;
     }
-    useToastStore.getState().showToast("Event erfolgreich erstellt!", "success");
+
+    if (!user) {
+      Alert.alert("Nicht angemeldet", "Bitte melde dich an, um Events zu erstellen.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let venueId: string | null = null;
+
+      const { data: existingVenue } = await supabase
+        .from("venues")
+        .select("id")
+        .ilike("name", venueName.trim())
+        .limit(1)
+        .single();
+
+      if (existingVenue) {
+        venueId = existingVenue.id;
+      } else {
+        const { data: newVenue, error: venueError } = await supabase
+          .from("venues")
+          .insert({
+            name: venueName.trim(),
+            address: address.trim() || venueName.trim(),
+            city: "",
+            lat: 0,
+            lng: 0,
+          })
+          .select("id")
+          .single();
+
+        if (venueError) throw venueError;
+        venueId = newVenue.id;
+      }
+
+      let imageUrl: string | null = null;
+      if (flyerUri) {
+        const fileName = `covers/${Date.now()}.jpg`;
+        const response = await fetch(flyerUri);
+        const blob = await response.blob();
+        const { error: uploadError } = await supabase.storage
+          .from("event-photos")
+          .upload(fileName, blob, { contentType: "image/jpeg" });
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from("event-photos")
+            .getPublicUrl(fileName);
+          imageUrl = urlData.publicUrl;
+        }
+      }
+
+      const sourceType = user.role === "verified_organizer"
+        ? "verified_organizer"
+        : user.role === "verified_user"
+          ? "verified_user"
+          : "community";
+
+      const { error: eventError } = await supabase.from("events").insert({
+        title: title.trim(),
+        description: description.trim(),
+        venue_id: venueId,
+        event_date: format(eventDate, "yyyy-MM-dd"),
+        time_start: format(timeStart, "HH:mm"),
+        time_end: timeEnd ? format(timeEnd, "HH:mm") : null,
+        category,
+        price_info: priceInfo.trim() || null,
+        source_type: sourceType,
+        created_by: user.id,
+        image_url: imageUrl,
+      });
+
+      if (eventError) throw eventError;
+
+      useToastStore.getState().showToast("Event erfolgreich erstellt!", "success");
+      setTitle("");
+      setDescription("");
+      setVenueName("");
+      setAddress("");
+      setEventDate(null);
+      setTimeStart(null);
+      setTimeEnd(null);
+      setCategory(null);
+      setPriceInfo("");
+      setFlyerUri(null);
+    } catch (error: any) {
+      Alert.alert("Fehler", error?.message ?? "Event konnte nicht erstellt werden.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -307,10 +403,11 @@ export default function CreateEventScreen() {
           {/* Submit */}
           <TouchableOpacity
             onPress={handleSubmit}
-            className="bg-primary rounded-xl py-4 items-center mt-2"
+            disabled={isSubmitting}
+            className={`rounded-xl py-4 items-center mt-2 ${isSubmitting ? "bg-primary/50" : "bg-primary"}`}
           >
             <Text className="text-white font-bold text-base">
-              Event veröffentlichen
+              {isSubmitting ? "Wird veröffentlicht..." : "Event veröffentlichen"}
             </Text>
           </TouchableOpacity>
         </View>

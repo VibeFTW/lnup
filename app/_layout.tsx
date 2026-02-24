@@ -4,6 +4,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuthStore } from "@/stores/authStore";
 import { Toast } from "@/components/Toast";
 import "../global.css";
 
@@ -12,10 +13,14 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const initialize = useAuthStore((s) => s.initialize);
 
   useEffect(() => {
     async function prepare() {
-      const onboarded = await AsyncStorage.getItem("@lnup_onboarded");
+      const [onboarded] = await Promise.all([
+        AsyncStorage.getItem("@lnup_onboarded"),
+        initialize(),
+      ]);
       setNeedsOnboarding(onboarded !== "true");
       setIsReady(true);
       SplashScreen.hideAsync();

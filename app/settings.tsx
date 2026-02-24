@@ -1,9 +1,11 @@
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "@/stores/authStore";
+import { supabase } from "@/lib/supabase";
 
 function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -72,8 +74,17 @@ export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const handleLogout = () => {
-    logout();
+  const deleteAccount = useAuthStore((s) => s.deleteAccount);
+  const [email, setEmail] = useState("—");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user?.email) setEmail(session.user.email);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
     router.replace("/(auth)/login");
   };
 
@@ -86,9 +97,13 @@ export default function SettingsScreen() {
         {
           text: "Konto löschen",
           style: "destructive",
-          onPress: () => {
-            // TODO: Delete account via Supabase
-            handleLogout();
+          onPress: async () => {
+            try {
+              await deleteAccount();
+              router.replace("/(auth)/login");
+            } catch {
+              Alert.alert("Fehler", "Konto konnte nicht gelöscht werden. Bitte versuche es erneut.");
+            }
           },
         },
       ]
@@ -114,7 +129,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="mail-outline"
             label="E-Mail"
-            value={user ? "demo@lnup.app" : "—"}
+            value={user ? email : "—"}
           />
           <SettingsRow
             icon="person-outline"

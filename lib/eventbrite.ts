@@ -65,6 +65,7 @@ export async function fetchEventbriteEvents(
             id: `eb-venue-${eb.venue.id}`,
             name: eb.venue.name,
             address: eb.venue.address.localized_address_display,
+            city,
             lat: parseFloat(eb.venue.address.latitude) || 0,
             lng: parseFloat(eb.venue.address.longitude) || 0,
             google_place_id: null,

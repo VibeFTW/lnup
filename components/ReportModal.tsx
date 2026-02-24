@@ -2,6 +2,7 @@ import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useToastStore } from "@/stores/toastStore";
+import { supabase } from "@/lib/supabase";
 import { COLORS } from "@/lib/constants";
 import type { ReportReason } from "@/types";
 
@@ -23,13 +24,44 @@ export function ReportModal({ visible, onClose, eventId }: ReportModalProps) {
   const [details, setDetails] = useState("");
   const showToast = useToastStore((s) => s.showToast);
 
-  const handleSubmit = () => {
-    if (!selectedReason) return;
-    // TODO: Submit to Supabase
-    showToast("Event wurde gemeldet. Danke!", "success");
-    setSelectedReason(null);
-    setDetails("");
-    onClose();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!selectedReason || isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        showToast("Bitte melde dich an, um Events zu melden.", "error");
+        return;
+      }
+
+      const { error } = await supabase.from("event_reports").insert({
+        event_id: eventId,
+        reported_by: session.user.id,
+        reason: selectedReason,
+        details: details.trim() || null,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          showToast("Du hast dieses Event bereits gemeldet.", "warning");
+        } else {
+          showToast("Fehler beim Melden. Bitte versuche es erneut.", "error");
+        }
+        return;
+      }
+
+      showToast("Event wurde gemeldet. Danke!", "success");
+      setSelectedReason(null);
+      setDetails("");
+      onClose();
+    } catch {
+      showToast("Fehler beim Melden. Bitte versuche es erneut.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
