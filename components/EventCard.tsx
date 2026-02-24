@@ -140,7 +140,7 @@ export function EventCard({ event, onToggleGoing, isGoing }: EventCardProps) {
           <View className="flex-row items-center gap-1">
             <Ionicons name="location-outline" size={14} color="#A0A0B8" />
             <Text className="text-xs text-text-secondary" numberOfLines={1}>
-              {event.venue?.name ?? "Unbekannt"}
+              {event.venue?.name ? `${event.venue.name}, ${event.venue.city || ""}`.replace(/, $/, "") : "Unbekannt"}
             </Text>
           </View>
           <View className="flex-row items-center gap-1">

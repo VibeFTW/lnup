@@ -204,7 +204,7 @@ export default function EventDetailScreen() {
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-text-primary">{event.venue?.name}</Text>
-                <Text className="text-xs text-text-secondary">{event.venue?.address}</Text>
+                <Text className="text-xs text-text-secondary">{[event.venue?.address, event.venue?.city].filter(Boolean).join(", ")}</Text>
               </View>
               <Ionicons name="navigate-outline" size={18} color="#A0A0B8" />
             </View>

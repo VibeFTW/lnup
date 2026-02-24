@@ -74,7 +74,7 @@ function VenueRow({ venue, onPress }: { venue: Venue; onPress: () => void }) {
           )}
         </View>
         <Text className="text-xs text-text-muted" numberOfLines={1}>
-          {venue.address}
+          {[venue.address, venue.city].filter(Boolean).join(", ")}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color="#6B6B80" />
