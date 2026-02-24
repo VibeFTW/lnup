@@ -28,5 +28,5 @@ export const useFilterStore = create<FilterState>((set) => ({
   setCity: (city) => set({ city }),
   setSortBy: (sortBy) => set({ sortBy }),
   resetFilters: () =>
-    set({ dateFilter: "alle", categoryFilter: null, searchQuery: "", sortBy: "date" }),
+    set({ dateFilter: "alle", categoryFilter: null, searchQuery: "", city: "", sortBy: "date" }),
 }));

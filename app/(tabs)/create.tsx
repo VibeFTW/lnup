@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useToastStore } from "@/stores/toastStore";
 import { useAuthStore } from "@/stores/authStore";
+import { AuthGuard } from "@/components/AuthGuard";
 import { supabase } from "@/lib/supabase";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
@@ -35,6 +36,7 @@ export default function CreateEventScreen() {
   const [timeEnd, setTimeEnd] = useState<Date | null>(null);
   const [category, setCategory] = useState<EventCategory | null>(null);
   const [priceInfo, setPriceInfo] = useState("");
+  const [venueCity, setVenueCity] = useState("");
   const [flyerUri, setFlyerUri] = useState<string | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -74,7 +76,13 @@ export default function CreateEventScreen() {
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAuthGuard, setShowAuthGuard] = useState(false);
   const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    if (!isAuthenticated) setShowAuthGuard(true);
+  }, [isAuthenticated]);
 
   const handleSubmit = async () => {
     Keyboard.dismiss();
@@ -96,9 +104,9 @@ export default function CreateEventScreen() {
       const { data: existingVenue } = await supabase
         .from("venues")
         .select("id")
-        .ilike("name", venueName.trim())
+        .ilike("name", `%${venueName.trim()}%`)
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (existingVenue) {
         venueId = existingVenue.id;
@@ -108,7 +116,7 @@ export default function CreateEventScreen() {
           .insert({
             name: venueName.trim(),
             address: address.trim() || venueName.trim(),
-            city: "",
+            city: venueCity.trim(),
             lat: 0,
             lng: 0,
           })
@@ -163,6 +171,7 @@ export default function CreateEventScreen() {
       setDescription("");
       setVenueName("");
       setAddress("");
+      setVenueCity("");
       setEventDate(null);
       setTimeStart(null);
       setTimeEnd(null);
@@ -269,6 +278,13 @@ export default function CreateEventScreen() {
               value={address}
               onChangeText={setAddress}
               placeholder="Adresse"
+              placeholderTextColor={COLORS.textMuted}
+              className="bg-card border border-border rounded-xl px-4 py-3 text-text-primary text-base mb-2"
+            />
+            <TextInput
+              value={venueCity}
+              onChangeText={setVenueCity}
+              placeholder="Stadt (z.B. Deggendorf)"
               placeholderTextColor={COLORS.textMuted}
               className="bg-card border border-border rounded-xl px-4 py-3 text-text-primary text-base"
             />
@@ -412,6 +428,12 @@ export default function CreateEventScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <AuthGuard
+        visible={showAuthGuard}
+        onClose={() => setShowAuthGuard(false)}
+        message="Melde dich an, um Events zu erstellen und mit deiner Community zu teilen."
+      />
     </KeyboardAvoidingView>
   );
 }

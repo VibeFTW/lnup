@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Share } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,7 +28,12 @@ export default function EventDetailScreen() {
   const savedIds = useEventStore((s) => s.savedEventIds);
   const goingIds = useEventStore((s) => s.goingEventIds);
   const getPhotosForEvent = useEventStore((s) => s.getPhotosForEvent);
+  const fetchPhotosForEvent = useEventStore((s) => s.fetchPhotosForEvent);
   const currentUser = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (id) fetchPhotosForEvent(id);
+  }, [id]);
 
   if (!event) {
     return (
@@ -51,6 +56,8 @@ export default function EventDetailScreen() {
   const isPast = new Date(event.event_date) < new Date(new Date().toDateString());
   const approvedPhotos = getPhotosForEvent(event.id);
   const isHost = currentUser?.id === event.created_by;
+  const isAdmin = currentUser?.role === "admin";
+  const canEdit = isHost || isAdmin;
 
   return (
     <View className="flex-1 bg-background">
@@ -67,6 +74,15 @@ export default function EventDetailScreen() {
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <View className="flex-row gap-2">
+          {canEdit && (
+            <TouchableOpacity
+              onPress={() => router.push(`/event/${event.id}/edit`)}
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => toggleSave(event.id)}
             className="w-10 h-10 rounded-full items-center justify-center"

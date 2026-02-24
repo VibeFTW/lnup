@@ -71,7 +71,7 @@ Events lassen sich nach Datum (Heute, Morgen, Wochenende, Diese Woche) und Kateg
 | **Styling** | NativeWind v4 (Tailwind CSS für React Native) |
 | **State Management** | Zustand |
 | **Backend** | Supabase (PostgreSQL, Auth, Storage, Edge Functions) |
-| **KI** | OpenRouter (Zugang zu Gemini, GPT-4o, etc.) |
+| **KI** | Google Gemini API |
 | **Karten** | Google Maps SDK |
 | **Event-APIs** | Eventbrite API, Ticketmaster Discovery API |
 | **Sprache** | TypeScript (strict mode) |
@@ -117,7 +117,7 @@ npm install
 npx expo start
 ```
 
-Die App startet mit Mock-Daten für die Region Deggendorf/Passau/Straubing/Regensburg. Für den vollen Funktionsumfang:
+Für den vollen Funktionsumfang:
 
 1. Supabase-Projekt erstellen und `supabase/migration.sql` ausführen
-2. `.env` anlegen (siehe `.env.example`) mit Supabase-URL, Anon-Key, Google Maps Key und OpenRouter Key
+2. `.env` anlegen (siehe `.env.example`) mit Supabase-URL, Anon-Key, Google Maps Key und Gemini API Key

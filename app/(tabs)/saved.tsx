@@ -1,7 +1,10 @@
+import { useState, useEffect } from "react";
 import { View, Text, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EventCard } from "@/components/EventCard";
 import { useEventStore } from "@/stores/eventStore";
+import { useAuthStore } from "@/stores/authStore";
+import { AuthGuard } from "@/components/AuthGuard";
 
 export default function SavedScreen() {
   const insets = useSafeAreaInsets();
@@ -9,6 +12,12 @@ export default function SavedScreen() {
   const toggleGoing = useEventStore((s) => s.toggleGoing);
   const goingIds = useEventStore((s) => s.goingEventIds);
   const savedEvents = getSavedEvents();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const [showAuthGuard, setShowAuthGuard] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) setShowAuthGuard(true);
+  }, [isAuthenticated]);
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -42,6 +51,12 @@ export default function SavedScreen() {
             </Text>
           </View>
         }
+      />
+
+      <AuthGuard
+        visible={showAuthGuard}
+        onClose={() => setShowAuthGuard(false)}
+        message="Melde dich an, um Events zu speichern und später wiederzufinden."
       />
     </View>
   );

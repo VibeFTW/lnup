@@ -12,17 +12,18 @@ interface EventState {
   goingEventIds: Set<string>;
   isLoading: boolean;
   fetchEvents: (city?: string) => Promise<void>;
-  toggleSave: (eventId: string) => void;
-  toggleGoing: (eventId: string) => void;
-  confirmAttended: (eventId: string) => void;
+  toggleSave: (eventId: string) => Promise<void>;
+  toggleGoing: (eventId: string) => Promise<void>;
+  confirmAttended: (eventId: string) => Promise<void>;
   mergeExternalEvents: (externalEvents: Event[]) => void;
   getEventById: (id: string) => Event | undefined;
   getSavedEvents: () => Event[];
   getEventsByCreator: (userId: string) => Event[];
   getPhotosForEvent: (eventId: string) => EventPhoto[];
   getPendingPhotosForEvent: (eventId: string) => EventPhoto[];
-  uploadPhoto: (eventId: string, imageUri: string, userId: string) => void;
-  moderatePhoto: (photoId: string, approved: boolean) => void;
+  fetchPhotosForEvent: (eventId: string) => Promise<void>;
+  uploadPhoto: (eventId: string, imageUri: string, userId: string) => Promise<void>;
+  moderatePhoto: (photoId: string, approved: boolean) => Promise<void>;
 }
 
 function mapRowToEvent(row: any, savedIds?: Set<string>, goingIds?: Set<string>): Event {
@@ -287,6 +288,53 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   getPendingPhotosForEvent: (eventId) => {
     return get().photos.filter((p) => p.event_id === eventId && p.status === "pending");
+  },
+
+  fetchPhotosForEvent: async (eventId) => {
+    try {
+      const { data, error } = await supabase
+        .from("event_photos")
+        .select("*, uploader:uploaded_by(*)")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false });
+
+      if (error || !data) return;
+
+      const photos: EventPhoto[] = data.map((row: any) => ({
+        id: row.id,
+        event_id: row.event_id,
+        uploaded_by: row.uploaded_by,
+        uploader: row.uploader
+          ? {
+              id: row.uploader.id,
+              username: row.uploader.username,
+              display_name: row.uploader.display_name,
+              avatar_url: row.uploader.avatar_url,
+              role: row.uploader.role,
+              trust_score: row.uploader.trust_score,
+              rank: getRankForScore(row.uploader.trust_score).id,
+              email_verified: row.uploader.email_verified,
+              phone_verified: row.uploader.phone_verified,
+              created_at: row.uploader.created_at,
+              events_posted: 0,
+              events_confirmed: 0,
+              reports_count: 0,
+            }
+          : undefined,
+        image_url: row.image_url,
+        thumbnail_url: row.thumbnail_url ?? row.image_url,
+        status: row.status,
+        approved_by: row.approved_by,
+        created_at: row.created_at,
+      }));
+
+      set((state) => {
+        const otherPhotos = state.photos.filter((p) => p.event_id !== eventId);
+        return { photos: [...otherPhotos, ...photos] };
+      });
+    } catch (error) {
+      console.warn("Photo fetch failed:", error);
+    }
   },
 
   uploadPhoto: async (eventId, imageUri, userId) => {

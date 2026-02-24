@@ -319,8 +319,14 @@ CREATE POLICY "Owners can update venues" ON public.venues FOR UPDATE USING (auth
 -- Events: public read active, authenticated create
 CREATE POLICY "Active events are public" ON public.events FOR SELECT USING (status IN ('active', 'past'));
 CREATE POLICY "Authenticated users can create events" ON public.events FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-CREATE POLICY "Creators can update own events" ON public.events FOR UPDATE USING (auth.uid() = created_by);
-CREATE POLICY "Creators can delete own events" ON public.events FOR DELETE USING (auth.uid() = created_by);
+CREATE POLICY "Creators can update own events" ON public.events FOR UPDATE USING (
+  auth.uid() = created_by OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+);
+CREATE POLICY "Creators can delete own events" ON public.events FOR DELETE USING (
+  auth.uid() = created_by OR
+  EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+);
 
 -- Event series: public read, creator write
 CREATE POLICY "Event series are public" ON public.event_series FOR SELECT USING (true);
@@ -414,3 +420,37 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('event-photos', 'event-photos', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- CITIES
+-- ============================================================
+
+CREATE TABLE public.cities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Cities are public" ON public.cities FOR SELECT USING (true);
+
+INSERT INTO public.cities (name, lat, lng) VALUES
+  ('Deggendorf', 48.8317, 12.9589),
+  ('Passau', 48.5665, 13.4319),
+  ('Straubing', 48.8825, 12.5738),
+  ('Regensburg', 49.0134, 12.1016),
+  ('Landshut', 48.5361, 12.1522),
+  ('Plattling', 48.7773, 12.8783),
+  ('Vilshofen', 48.6264, 13.1883),
+  ('Freyung', 48.8075, 13.5481),
+  ('Grafenau', 48.8567, 13.3978),
+  ('Regen', 48.9714, 13.1281),
+  ('Zwiesel', 49.0181, 13.2356),
+  ('Cham', 49.2236, 12.6622),
+  ('Dingolfing', 48.6292, 12.4997),
+  ('Kelheim', 48.9167, 11.8667),
+  ('Bogen', 48.9097, 12.6881)
+ON CONFLICT (name) DO NOTHING;

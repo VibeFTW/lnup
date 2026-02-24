@@ -1,6 +1,6 @@
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { EventCard } from "@/components/EventCard";
@@ -28,7 +28,21 @@ export default function FeedScreen() {
   const { dateFilter, categoryFilter, setDateFilter, setCategoryFilter, city, sortBy } =
     useFilterStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
   const [cityModalVisible, setCityModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (!hasFetched) {
+      fetchEvents(city || undefined);
+      setHasFetched(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (hasFetched) {
+      fetchEvents(city || undefined);
+    }
+  }, [city]);
   const [searchVisible, setSearchVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
 
@@ -69,9 +83,9 @@ export default function FeedScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchEvents();
+    await fetchEvents(city || undefined);
     setRefreshing(false);
-  }, [fetchEvents]);
+  }, [fetchEvents, city]);
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
