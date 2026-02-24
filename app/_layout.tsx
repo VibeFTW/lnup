@@ -81,6 +81,14 @@ export default function RootLayout() {
           name="notification-settings"
           options={{ headerShown: false, presentation: "card" }}
         />
+        <Stack.Screen
+          name="join-event"
+          options={{ headerShown: false, presentation: "card" }}
+        />
+        <Stack.Screen
+          name="invite/[code]"
+          options={{ headerShown: false, presentation: "card" }}
+        />
       </Stack>
     </View>
   );

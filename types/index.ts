@@ -103,8 +103,12 @@ export interface Event {
   going_count: number;
   confirmations_count: number;
   photos_count: number;
+  is_private: boolean;
+  invite_code: string | null;
+  max_attendees: number | null;
   is_saved?: boolean;
   is_going?: boolean;
+  is_member?: boolean;
 }
 
 export interface EventPhoto {
@@ -141,6 +145,14 @@ export interface EventReport {
   reason: ReportReason;
   details: string | null;
   created_at: string;
+}
+
+export interface EventMember {
+  id: string;
+  event_id: string;
+  user_id: string;
+  user?: Profile;
+  joined_at: string;
 }
 
 export interface Rank {

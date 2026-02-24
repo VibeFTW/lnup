@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Event, EventPhoto } from "@/types";
+import type { Event, EventPhoto, EventMember } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { fetchExternalEvents } from "@/lib/eventApis";
 import { EVENTBRITE_API_KEY, TICKETMASTER_API_KEY } from "@/lib/constants";
@@ -31,6 +31,12 @@ interface EventState {
   fetchPhotosForEvent: (eventId: string) => Promise<void>;
   uploadPhoto: (eventId: string, imageUri: string, userId: string) => Promise<void>;
   moderatePhoto: (photoId: string, approved: boolean) => Promise<void>;
+  fetchPrivateEvents: () => Promise<Event[]>;
+  joinEvent: (inviteCode: string) => Promise<Event | null>;
+  leaveEvent: (eventId: string) => Promise<void>;
+  kickMember: (eventId: string, userId: string) => Promise<void>;
+  getEventMembers: (eventId: string) => Promise<EventMember[]>;
+  regenerateInviteCode: (eventId: string) => Promise<string | null>;
 }
 
 function mapRowToEvent(row: any, savedIds?: Set<string>, goingIds?: Set<string>): Event {
@@ -90,6 +96,9 @@ function mapRowToEvent(row: any, savedIds?: Set<string>, goingIds?: Set<string>)
     status: row.status,
     ai_confidence: row.ai_confidence,
     image_url: row.image_url,
+    is_private: row.is_private ?? false,
+    invite_code: row.invite_code ?? null,
+    max_attendees: row.max_attendees ?? null,
     created_at: row.created_at,
     saves_count: row.saves_count ?? 0,
     going_count: row.going_count ?? 0,
@@ -446,5 +455,163 @@ export const useEventStore = create<EventState>((set, get) => ({
       .eq("id", photoId);
 
     if (error) showError("Foto konnte nicht moderiert werden.");
+  },
+
+  fetchPrivateEvents: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return [];
+
+    const { data: memberships } = await supabase
+      .from("event_members")
+      .select("event_id")
+      .eq("user_id", session.user.id);
+
+    if (!memberships?.length) return [];
+
+    const eventIds = memberships.map((m: any) => m.event_id);
+    const { data: rows } = await supabase
+      .from("events_with_counts")
+      .select("*, venues(*), profiles:created_by(*)")
+      .in("id", eventIds)
+      .in("status", ["active", "past"]);
+
+    return (rows ?? []).map((row: any) => ({
+      ...mapRowToEvent(row),
+      is_member: true,
+    }));
+  },
+
+  joinEvent: async (inviteCode) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      showError("Bitte melde dich an.");
+      return null;
+    }
+
+    const { data: event, error: lookupError } = await supabase
+      .from("events")
+      .select("id, title, max_attendees, invite_code")
+      .eq("invite_code", inviteCode.toUpperCase())
+      .eq("is_private", true)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (lookupError || !event) {
+      showError("Ungültiger Einladungscode.");
+      return null;
+    }
+
+    if (event.max_attendees) {
+      const { count } = await supabase
+        .from("event_members")
+        .select("id", { count: "exact", head: true })
+        .eq("event_id", event.id);
+
+      if ((count ?? 0) >= event.max_attendees) {
+        showError("Dieses Event ist leider voll.");
+        return null;
+      }
+    }
+
+    const { error: joinError } = await supabase
+      .from("event_members")
+      .insert({ event_id: event.id, user_id: session.user.id });
+
+    if (joinError) {
+      if (joinError.code === "23505") {
+        showError("Du bist bereits Mitglied dieses Events.");
+      } else {
+        showError("Beitreten fehlgeschlagen.");
+      }
+      return null;
+    }
+
+    useToastStore.getState().showToast("Du bist dabei!", "success");
+
+    const { data: fullEvent } = await supabase
+      .from("events_with_counts")
+      .select("*, venues(*), profiles:created_by(*)")
+      .eq("id", event.id)
+      .single();
+
+    if (fullEvent) {
+      const mapped = { ...mapRowToEvent(fullEvent), is_member: true };
+      set((state) => ({ events: [...state.events, mapped] }));
+      return mapped;
+    }
+    return null;
+  },
+
+  leaveEvent: async (eventId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return;
+
+    const { error } = await supabase
+      .from("event_members")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", session.user.id);
+
+    if (error) {
+      showError("Verlassen fehlgeschlagen.");
+      return;
+    }
+
+    set((state) => ({
+      events: state.events.filter((e) => !(e.id === eventId && e.is_private)),
+    }));
+    useToastStore.getState().showToast("Event verlassen.", "info");
+  },
+
+  kickMember: async (eventId, userId) => {
+    const { error } = await supabase
+      .from("event_members")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", userId);
+
+    if (error) showError("Mitglied konnte nicht entfernt werden.");
+    else useToastStore.getState().showToast("Mitglied entfernt.", "success");
+  },
+
+  getEventMembers: async (eventId) => {
+    const { data, error } = await supabase
+      .from("event_members")
+      .select("*, user:user_id(*)")
+      .eq("event_id", eventId)
+      .order("joined_at", { ascending: true });
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => ({
+      id: row.id,
+      event_id: row.event_id,
+      user_id: row.user_id,
+      user: row.user ?? undefined,
+      joined_at: row.joined_at,
+    }));
+  },
+
+  regenerateInviteCode: async (eventId) => {
+    const { generateInviteCode } = await import("@/lib/inviteCode");
+    const newCode = generateInviteCode();
+
+    const { error } = await supabase
+      .from("events")
+      .update({ invite_code: newCode })
+      .eq("id", eventId);
+
+    if (error) {
+      showError("Code konnte nicht regeneriert werden.");
+      return null;
+    }
+
+    set((state) => ({
+      events: state.events.map((e) =>
+        e.id === eventId ? { ...e, invite_code: newCode } : e
+      ),
+    }));
+
+    return newCode;
   },
 }));

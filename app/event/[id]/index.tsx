@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Share } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Share, Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,12 +13,14 @@ import { PhotoGallery } from "@/components/PhotoGallery";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { PhotoModeration } from "@/components/PhotoModeration";
 import { ReportModal } from "@/components/ReportModal";
+import { InviteModal } from "@/components/InviteModal";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryLabel, getCategoryIcon } from "@/lib/categories";
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [reportVisible, setReportVisible] = useState(false);
+  const [inviteVisible, setInviteVisible] = useState(false);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const event = useEventStore((s) => s.getEventById(id));
@@ -29,6 +31,7 @@ export default function EventDetailScreen() {
   const goingIds = useEventStore((s) => s.goingEventIds);
   const getPhotosForEvent = useEventStore((s) => s.getPhotosForEvent);
   const fetchPhotosForEvent = useEventStore((s) => s.fetchPhotosForEvent);
+  const leaveEvent = useEventStore((s) => s.leaveEvent);
   const currentUser = useAuthStore((s) => s.user);
 
   useEffect(() => {
@@ -58,6 +61,7 @@ export default function EventDetailScreen() {
   const isHost = currentUser?.id === event.created_by;
   const isAdmin = currentUser?.role === "admin";
   const canEdit = isHost || isAdmin;
+  const isMember = event.is_private && event.is_member && !isHost;
 
   return (
     <View className="flex-1 bg-background">
@@ -74,6 +78,15 @@ export default function EventDetailScreen() {
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <View className="flex-row gap-2">
+          {event.is_private && event.invite_code && (canEdit || event.is_member) && (
+            <TouchableOpacity
+              onPress={() => setInviteVisible(true)}
+              className="w-10 h-10 rounded-full items-center justify-center"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <Ionicons name="qr-code-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
           {canEdit && (
             <TouchableOpacity
               onPress={() => router.push(`/event/${event.id}/edit`)}
@@ -114,6 +127,14 @@ export default function EventDetailScreen() {
         <EventCover category={event.category} imageUrl={event.image_url} size="detail" />
 
         <View className="px-4 pb-8 -mt-4 rounded-t-3xl bg-background pt-5">
+          {/* Private Badge */}
+          {event.is_private && (
+            <View className="flex-row items-center gap-1.5 mb-3 bg-primary/10 rounded-full px-3 py-1.5 self-start border border-primary/30">
+              <Ionicons name="lock-closed" size={12} color="#6C5CE7" />
+              <Text className="text-xs font-semibold text-primary">Privates Event</Text>
+            </View>
+          )}
+
           {/* Trust Badge + Creator (tappable) */}
           <View className="flex-row items-center gap-2 mb-3">
             <TrustBadge sourceType={event.source_type} />
@@ -263,6 +284,32 @@ export default function EventDetailScreen() {
               <Ionicons name="flag-outline" size={18} color="#FF5252" />
               <Text className="text-danger font-medium text-sm">Event melden</Text>
             </TouchableOpacity>
+
+            {isMember && (
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    "Event verlassen",
+                    "Möchtest du dieses private Event wirklich verlassen?",
+                    [
+                      { text: "Abbrechen", style: "cancel" },
+                      {
+                        text: "Verlassen",
+                        style: "destructive",
+                        onPress: async () => {
+                          await leaveEvent(event.id);
+                          router.back();
+                        },
+                      },
+                    ]
+                  );
+                }}
+                className="bg-card border border-border rounded-xl py-4 items-center flex-row justify-center gap-2"
+              >
+                <Ionicons name="exit-outline" size={18} color="#A0A0B8" />
+                <Text className="text-text-muted font-medium text-sm">Event verlassen</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -272,6 +319,15 @@ export default function EventDetailScreen() {
         onClose={() => setReportVisible(false)}
         eventId={event.id}
       />
+
+      {event.is_private && event.invite_code && (
+        <InviteModal
+          visible={inviteVisible}
+          onClose={() => setInviteVisible(false)}
+          inviteCode={event.invite_code}
+          eventTitle={event.title}
+        />
+      )}
     </View>
   );
 }

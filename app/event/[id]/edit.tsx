@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useToastStore } from "@/stores/toastStore";
 import { useEventStore } from "@/stores/eventStore";
 import { supabase } from "@/lib/supabase";
+import type { EventMember } from "@/types";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { EVENT_CATEGORIES } from "@/lib/categories";
 import { COLORS } from "@/lib/constants";
@@ -40,9 +41,22 @@ export default function EditEventScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [maxAttendees, setMaxAttendees] = useState("");
+  const [members, setMembers] = useState<EventMember[]>([]);
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimeStartPicker, setShowTimeStartPicker] = useState(false);
   const [showTimeEndPicker, setShowTimeEndPicker] = useState(false);
+
+  const getEventMembers = useEventStore((s) => s.getEventMembers);
+  const kickMember = useEventStore((s) => s.kickMember);
+  const regenerateInviteCode = useEventStore((s) => s.regenerateInviteCode);
+
+  useEffect(() => {
+    if (event?.is_private && id) {
+      getEventMembers(id).then(setMembers);
+    }
+  }, [id, event?.is_private]);
 
   useEffect(() => {
     if (!event) return;
@@ -50,6 +64,7 @@ export default function EditEventScreen() {
     setDescription(event.description);
     setPriceInfo(event.price_info ?? "");
     setCategory(event.category);
+    setMaxAttendees(event.max_attendees ? String(event.max_attendees) : "");
     try {
       setEventDate(parse(event.event_date, "yyyy-MM-dd", new Date()));
     } catch {
@@ -109,17 +124,22 @@ export default function EditEventScreen() {
 
     setIsSubmitting(true);
     try {
+      const updateData: Record<string, any> = {
+        title: title.trim(),
+        description: description.trim(),
+        event_date: format(eventDate, "yyyy-MM-dd"),
+        time_start: format(timeStart, "HH:mm"),
+        time_end: timeEnd ? format(timeEnd, "HH:mm") : null,
+        category,
+        price_info: priceInfo.trim() || null,
+      };
+      if (event.is_private) {
+        updateData.max_attendees = maxAttendees ? parseInt(maxAttendees, 10) : null;
+      }
+
       const { error } = await supabase
         .from("events")
-        .update({
-          title: title.trim(),
-          description: description.trim(),
-          event_date: format(eventDate, "yyyy-MM-dd"),
-          time_start: format(timeStart, "HH:mm"),
-          time_end: timeEnd ? format(timeEnd, "HH:mm") : null,
-          category,
-          price_info: priceInfo.trim() || null,
-        })
+        .update(updateData)
         .eq("id", id);
 
       if (error) throw error;
@@ -285,6 +305,91 @@ export default function EditEventScreen() {
               className="bg-card border border-border rounded-xl px-4 py-3 text-text-primary text-base"
             />
           </View>
+
+          {/* Private Event Controls */}
+          {event.is_private && (
+            <View className="bg-card border border-border rounded-xl p-4 gap-4">
+              <View className="flex-row items-center gap-2 mb-1">
+                <Ionicons name="lock-closed" size={18} color="#6C5CE7" />
+                <Text className="text-sm font-semibold text-text-primary">Privat-Einstellungen</Text>
+              </View>
+
+              <View>
+                <Text className="text-xs text-text-muted mb-1">Einladungscode</Text>
+                <View className="flex-row items-center gap-2">
+                  <View className="flex-1 bg-background border border-border rounded-xl px-4 py-2.5">
+                    <Text className="text-lg font-black text-primary tracking-widest">
+                      {event.invite_code ?? "Deaktiviert"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      const newCode = await regenerateInviteCode(id);
+                      if (newCode) useToastStore.getState().showToast("Neuer Code generiert!", "success");
+                    }}
+                    className="bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5"
+                  >
+                    <Ionicons name="refresh" size={20} color="#6C5CE7" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View>
+                <Text className="text-xs text-text-muted mb-1">Max. Teilnehmer</Text>
+                <TextInput
+                  value={maxAttendees}
+                  onChangeText={(t) => setMaxAttendees(t.replace(/[^0-9]/g, ""))}
+                  placeholder="Unbegrenzt"
+                  placeholderTextColor={COLORS.textMuted}
+                  keyboardType="number-pad"
+                  className="bg-background border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm"
+                />
+              </View>
+
+              <View>
+                <Text className="text-xs text-text-muted mb-2">
+                  Mitglieder ({members.length})
+                </Text>
+                {members.length === 0 ? (
+                  <Text className="text-xs text-text-muted">Noch keine Mitglieder</Text>
+                ) : (
+                  <View className="gap-2">
+                    {members.map((member) => (
+                      <View key={member.id} className="flex-row items-center justify-between bg-background border border-border rounded-xl px-3 py-2.5">
+                        <View className="flex-row items-center gap-2">
+                          <Ionicons name="person-circle-outline" size={20} color="#A0A0B8" />
+                          <Text className="text-sm text-text-primary">
+                            {(member.user as any)?.display_name ?? (member.user as any)?.username ?? "Unbekannt"}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            Alert.alert(
+                              "Mitglied entfernen",
+                              "Bist du sicher?",
+                              [
+                                { text: "Abbrechen", style: "cancel" },
+                                {
+                                  text: "Entfernen",
+                                  style: "destructive",
+                                  onPress: async () => {
+                                    await kickMember(id, member.user_id);
+                                    setMembers((prev) => prev.filter((m) => m.id !== member.id));
+                                  },
+                                },
+                              ]
+                            );
+                          }}
+                        >
+                          <Ionicons name="close-circle" size={20} color="#FF5252" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
 
           <TouchableOpacity
             onPress={handleSave}

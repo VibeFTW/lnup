@@ -94,6 +94,9 @@ CREATE TABLE public.events (
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'flagged', 'removed', 'past')),
   ai_confidence DOUBLE PRECISION,
   image_url TEXT,
+  is_private BOOLEAN NOT NULL DEFAULT false,
+  invite_code TEXT UNIQUE,
+  max_attendees INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -163,6 +166,20 @@ CREATE TABLE public.event_reports (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(event_id, reported_by)
 );
+
+-- ============================================================
+-- EVENT MEMBERS (private event membership)
+-- ============================================================
+CREATE TABLE public.event_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id UUID NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(event_id, user_id)
+);
+
+CREATE INDEX idx_members_event ON public.event_members(event_id);
+CREATE INDEX idx_members_user ON public.event_members(user_id);
 
 -- ============================================================
 -- SCRAPE SOURCES (for AI pipeline)
@@ -306,6 +323,7 @@ ALTER TABLE public.event_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_saves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_confirmations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.scrape_sources ENABLE ROW LEVEL SECURITY;
 
 -- Profiles: public read, own write
@@ -318,7 +336,13 @@ CREATE POLICY "Authenticated users can create venues" ON public.venues FOR INSER
 CREATE POLICY "Owners can update venues" ON public.venues FOR UPDATE USING (auth.uid() = owner_id);
 
 -- Events: public read active, authenticated create
-CREATE POLICY "Active events are public" ON public.events FOR SELECT USING (status IN ('active', 'past'));
+CREATE POLICY "Active events are public" ON public.events FOR SELECT USING (
+  status IN ('active', 'past') AND (
+    is_private = false OR
+    created_by = auth.uid() OR
+    EXISTS (SELECT 1 FROM public.event_members WHERE event_id = id AND user_id = auth.uid())
+  )
+);
 CREATE POLICY "Authenticated users can create events" ON public.events FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 CREATE POLICY "Creators can update own events" ON public.events FOR UPDATE USING (
   auth.uid() = created_by OR
@@ -351,6 +375,17 @@ CREATE POLICY "Users can update own confirmations" ON public.event_confirmations
 -- Reports: own only
 CREATE POLICY "Users see own reports" ON public.event_reports FOR SELECT USING (auth.uid() = reported_by);
 CREATE POLICY "Users can report events" ON public.event_reports FOR INSERT WITH CHECK (auth.uid() = reported_by);
+
+-- Event members: members see co-members, creators see all, users join/leave
+CREATE POLICY "Members see event members" ON public.event_members FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.event_members em WHERE em.event_id = event_id AND em.user_id = auth.uid())
+  OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.created_by = auth.uid())
+);
+CREATE POLICY "Users can join events" ON public.event_members FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can leave events" ON public.event_members FOR DELETE USING (
+  auth.uid() = user_id
+  OR EXISTS (SELECT 1 FROM public.events e WHERE e.id = event_id AND e.created_by = auth.uid())
+);
 
 -- Scrape sources: admin only (no public RLS, managed via service role)
 CREATE POLICY "Scrape sources are admin only" ON public.scrape_sources FOR ALL USING (false);

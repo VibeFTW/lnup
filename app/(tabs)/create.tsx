@@ -9,6 +9,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
 import { EVENT_CATEGORIES } from "@/lib/categories";
 import { COLORS } from "@/lib/constants";
+import { generateInviteCode } from "@/lib/inviteCode";
 import type { EventCategory } from "@/types";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -38,6 +40,9 @@ export default function CreateEventScreen() {
   const [priceInfo, setPriceInfo] = useState("");
   const [venueCity, setVenueCity] = useState("");
   const [flyerUri, setFlyerUri] = useState<string | null>(null);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [maxAttendees, setMaxAttendees] = useState("");
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimeStartPicker, setShowTimeStartPicker] = useState(false);
@@ -162,6 +167,9 @@ export default function CreateEventScreen() {
         source_type: sourceType,
         created_by: user.id,
         image_url: imageUrl,
+        is_private: isPrivate,
+        invite_code: isPrivate ? inviteCode : null,
+        max_attendees: isPrivate && maxAttendees ? parseInt(maxAttendees, 10) : null,
       });
 
       if (eventError) throw eventError;
@@ -178,6 +186,9 @@ export default function CreateEventScreen() {
       setCategory(null);
       setPriceInfo("");
       setFlyerUri(null);
+      setIsPrivate(false);
+      setInviteCode("");
+      setMaxAttendees("");
     } catch (error: any) {
       Alert.alert("Fehler", error?.message ?? "Event konnte nicht erstellt werden.");
     } finally {
@@ -414,6 +425,48 @@ export default function CreateEventScreen() {
               placeholderTextColor={COLORS.textMuted}
               className="bg-card border border-border rounded-xl px-4 py-3 text-text-primary text-base"
             />
+          </View>
+
+          {/* Private Event Toggle */}
+          <View className="bg-card border border-border rounded-xl p-4">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3 flex-1">
+                <Ionicons name="lock-closed-outline" size={20} color="#6C5CE7" />
+                <View>
+                  <Text className="text-sm font-medium text-text-primary">Privates Event</Text>
+                  <Text className="text-xs text-text-muted">Nur mit Einladungscode sichtbar</Text>
+                </View>
+              </View>
+              <Switch
+                value={isPrivate}
+                onValueChange={(v) => {
+                  setIsPrivate(v);
+                  if (v && !inviteCode) setInviteCode(generateInviteCode());
+                }}
+                trackColor={{ false: "#2A2A3E", true: "#6C5CE7" }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
+
+            {isPrivate && (
+              <View className="mt-4 gap-3">
+                <View className="bg-background rounded-xl p-3 items-center border border-border">
+                  <Text className="text-xs text-text-muted mb-1">Einladungscode</Text>
+                  <Text className="text-2xl font-black text-primary tracking-widest">{inviteCode}</Text>
+                </View>
+                <View>
+                  <Text className="text-xs text-text-muted mb-1">Max. Teilnehmer (optional)</Text>
+                  <TextInput
+                    value={maxAttendees}
+                    onChangeText={(t) => setMaxAttendees(t.replace(/[^0-9]/g, ""))}
+                    placeholder="Unbegrenzt"
+                    placeholderTextColor={COLORS.textMuted}
+                    keyboardType="number-pad"
+                    className="bg-background border border-border rounded-xl px-4 py-2.5 text-text-primary text-sm"
+                  />
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Submit */}
