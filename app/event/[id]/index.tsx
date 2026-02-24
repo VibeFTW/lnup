@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEventStore } from "@/stores/eventStore";
 import { useAuthStore } from "@/stores/authStore";
+import { supabase } from "@/lib/supabase";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { TrustBadge } from "@/components/TrustBadge";
 import { RankBadge } from "@/components/RankBadge";
@@ -33,10 +34,35 @@ export default function EventDetailScreen() {
   const fetchPhotosForEvent = useEventStore((s) => s.fetchPhotosForEvent);
   const leaveEvent = useEventStore((s) => s.leaveEvent);
   const currentUser = useAuthStore((s) => s.user);
+  const [isMemberChecked, setIsMemberChecked] = useState(false);
+  const [isMemberState, setIsMemberState] = useState(false);
 
   useEffect(() => {
     if (id) fetchPhotosForEvent(id);
   }, [id]);
+
+  useEffect(() => {
+    async function checkMembership() {
+      if (!event?.is_private || !currentUser?.id) {
+        setIsMemberChecked(true);
+        return;
+      }
+      if (event.is_member !== undefined) {
+        setIsMemberState(!!event.is_member);
+        setIsMemberChecked(true);
+        return;
+      }
+      const { data } = await supabase
+        .from("event_members")
+        .select("id")
+        .eq("event_id", id)
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+      setIsMemberState(!!data);
+      setIsMemberChecked(true);
+    }
+    checkMembership();
+  }, [id, event?.is_private, currentUser?.id]);
 
   if (!event) {
     return (
@@ -56,12 +82,16 @@ export default function EventDetailScreen() {
 
   const isSaved = savedIds.has(event.id);
   const isGoing = goingIds.has(event.id);
-  const isPast = new Date(event.event_date) < new Date(new Date().toDateString());
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = event.event_date.split("-").map(Number);
+  const eventDay = new Date(y, m - 1, d);
+  const isPast = eventDay < today;
   const approvedPhotos = getPhotosForEvent(event.id);
   const isHost = currentUser?.id === event.created_by;
   const isAdmin = currentUser?.role === "admin";
   const canEdit = isHost || isAdmin;
-  const isMember = event.is_private && event.is_member && !isHost;
+  const isMember = event.is_private && (event.is_member || isMemberState) && !isHost;
 
   return (
     <View className="flex-1 bg-background">

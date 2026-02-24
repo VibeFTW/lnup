@@ -72,7 +72,11 @@ export function EventCard({ event, onToggleGoing, isGoing }: EventCardProps) {
     lastTap.current = now;
   };
 
-  const isPast = new Date(event.event_date) < new Date(new Date().toDateString());
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, mo, da] = event.event_date.split("-").map(Number);
+  const eventDay = new Date(y, mo - 1, da);
+  const isPast = eventDay < today;
 
   return (
     <AnimatedTouchable

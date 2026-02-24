@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, Modal, Share } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useToastStore } from "@/stores/toastStore";
-import * as Clipboard from "expo-linking";
+import * as Linking from "expo-linking";
 import QRCode from "react-native-qrcode-svg";
 
 interface InviteModalProps {
@@ -22,8 +22,10 @@ export function InviteModal({ visible, onClose, inviteCode, eventTitle }: Invite
     } catch {}
   };
 
-  const handleCopyCode = () => {
-    useToastStore.getState().showToast("Code kopiert!", "success");
+  const handleCopyCode = async () => {
+    try {
+      await Share.share({ message: inviteCode });
+    } catch {}
   };
 
   return (
@@ -45,7 +47,7 @@ export function InviteModal({ visible, onClose, inviteCode, eventTitle }: Invite
             <TouchableOpacity onPress={handleCopyCode}>
               <Text className="text-3xl font-black text-primary tracking-widest">{inviteCode}</Text>
             </TouchableOpacity>
-            <Text className="text-xs text-text-muted mt-1">Tippen zum Kopieren</Text>
+            <Text className="text-xs text-text-muted mt-1">Tippen zum Teilen</Text>
           </View>
 
           <View className="gap-3">

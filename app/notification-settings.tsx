@@ -111,11 +111,13 @@ export default function NotificationSettingsScreen() {
   }
 
   async function handleTogglePush() {
+    if (!user) return;
+
     if (pushEnabled) {
       await supabase
         .from("push_tokens")
         .delete()
-        .eq("user_id", user!.id);
+        .eq("user_id", user.id);
       setPushEnabled(false);
       useToastStore.getState().showToast("Push-Benachrichtigungen deaktiviert.", "info");
     } else {
