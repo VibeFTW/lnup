@@ -11,6 +11,67 @@ function showError(msg: string) {
   useToastStore.getState().showToast(msg, "error");
 }
 
+async function persistExternalEvents(events: Event[]): Promise<void> {
+  for (const event of events) {
+    try {
+      if (!event.source_url) continue;
+
+      const { data: existing } = await supabase
+        .from("events")
+        .select("id")
+        .eq("source_url", event.source_url)
+        .maybeSingle();
+
+      if (existing) continue;
+
+      let venueId: string | null = null;
+      if (event.venue) {
+        const { data: existingVenue } = await supabase
+          .from("venues")
+          .select("id")
+          .eq("name", event.venue.name)
+          .eq("city", event.venue.city)
+          .maybeSingle();
+
+        if (existingVenue) {
+          venueId = existingVenue.id;
+        } else {
+          const { data: newVenue } = await supabase
+            .from("venues")
+            .insert({
+              name: event.venue.name,
+              address: event.venue.address,
+              city: event.venue.city,
+              lat: event.venue.lat,
+              lng: event.venue.lng,
+            })
+            .select("id")
+            .single();
+          venueId = newVenue?.id ?? null;
+        }
+      }
+
+      await supabase.from("events").insert({
+        title: event.title,
+        description: event.description || "",
+        venue_id: venueId,
+        event_date: event.event_date,
+        time_start: event.time_start,
+        time_end: event.time_end,
+        category: event.category,
+        price_info: event.price_info || null,
+        source_type: event.source_type,
+        source_url: event.source_url,
+        status: "active",
+        ai_confidence: event.ai_confidence,
+        image_url: event.image_url,
+      });
+    } catch {
+      // Skip individual events that fail to persist
+    }
+  }
+}
+
 interface EventState {
   events: Event[];
   photos: EventPhoto[];
@@ -170,6 +231,9 @@ export const useEventStore = create<EventState>((set, get) => ({
         try {
           const externalEvents = await fetchExternalEvents(city);
           get().mergeExternalEvents(externalEvents);
+          persistExternalEvents(externalEvents).catch((err) =>
+            console.warn("Persist external events failed:", err)
+          );
         } catch (error) {
           console.warn("External event fetch failed:", error);
         }

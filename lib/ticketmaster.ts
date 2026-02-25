@@ -39,13 +39,17 @@ interface TMResponse {
   page: { totalElements: number };
 }
 
-const CITY_NAME_MAP: Record<string, string> = {
+const CITY_TO_ENGLISH: Record<string, string> = {
   "München": "Munich",
   "Nürnberg": "Nuremberg",
   "Köln": "Cologne",
   "Braunschweig": "Brunswick",
   "Hannover": "Hanover",
 };
+
+const CITY_TO_GERMAN: Record<string, string> = Object.fromEntries(
+  Object.entries(CITY_TO_ENGLISH).map(([de, en]) => [en, de])
+);
 
 export async function fetchTicketmasterEvents(
   city: string,
@@ -54,7 +58,7 @@ export async function fetchTicketmasterEvents(
   if (!apiKey) return [];
 
   try {
-    const ticketmasterCity = CITY_NAME_MAP[city] ?? city;
+    const ticketmasterCity = CITY_TO_ENGLISH[city] ?? city;
     const params = new URLSearchParams({
       city: ticketmasterCity,
       countryCode: "DE",
@@ -81,8 +85,11 @@ export async function fetchTicketmasterEvents(
       const genreName = tm.classifications?.[0]?.genre?.name ?? null;
 
       const bestImage = tm.images
+        ?.filter((img) => img.width >= 500 && img.width <= 1200)
         ?.sort((a, b) => b.width - a.width)
-        ?.[0]?.url ?? null;
+        ?.[0]?.url
+        ?? tm.images?.sort((a, b) => b.width - a.width)?.[0]?.url
+        ?? null;
 
       let priceInfo = "";
       if (tm.priceRanges?.length) {
@@ -100,10 +107,11 @@ export async function fetchTicketmasterEvents(
         ? {
             id: `tm-venue-${tmVenue.id}`,
             name: tmVenue.name,
-            address: [tmVenue.address?.line1, tmVenue.city?.name]
-              .filter(Boolean)
-              .join(", "),
-            city: tmVenue.city?.name ?? city,
+            address: [
+              tmVenue.address?.line1,
+              CITY_TO_GERMAN[tmVenue.city?.name ?? ""] ?? tmVenue.city?.name,
+            ].filter(Boolean).join(", "),
+            city: CITY_TO_GERMAN[tmVenue.city?.name ?? ""] ?? tmVenue.city?.name ?? city,
             lat: parseFloat(tmVenue.location?.latitude ?? "0"),
             lng: parseFloat(tmVenue.location?.longitude ?? "0"),
             google_place_id: null,
