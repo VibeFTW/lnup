@@ -12,6 +12,9 @@ function showError(msg: string) {
 }
 
 async function persistExternalEvents(events: Event[]): Promise<void> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return;
+
   const seenKeys = new Set<string>();
   const seenCities = new Set<string>();
 
