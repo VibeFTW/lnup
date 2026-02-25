@@ -12,15 +12,25 @@ function showError(msg: string) {
 }
 
 async function persistExternalEvents(events: Event[]): Promise<void> {
-  const seenCities = new Set<string>();
   const seenKeys = new Set<string>();
+  const seenCities = new Set<string>();
+
+  const { data: existingEvents } = await supabase
+    .from("events")
+    .select("title, event_date")
+    .eq("source_type", "api_ticketmaster")
+    .limit(2000);
+
+  const existingSet = new Set(
+    (existingEvents ?? []).map((e: any) => `${e.title}|${e.event_date}`)
+  );
 
   for (const event of events) {
     try {
       if (!event.source_url) continue;
 
-      const dedupKey = `${event.title.toLowerCase().trim()}|${event.event_date}`;
-      if (seenKeys.has(dedupKey)) continue;
+      const dedupKey = `${event.title}|${event.event_date}`;
+      if (seenKeys.has(dedupKey) || existingSet.has(dedupKey)) continue;
       seenKeys.add(dedupKey);
 
       const cityName = event.venue?.city;
@@ -31,28 +41,19 @@ async function persistExternalEvents(events: Event[]): Promise<void> {
           .upsert(
             { name: cityName, lat: event.venue?.lat ?? 0, lng: event.venue?.lng ?? 0 },
             { onConflict: "name" }
-          );
+          ).then(() => {});
       }
-
-      const { count } = await supabase
-        .from("events")
-        .select("id", { count: "exact", head: true })
-        .eq("title", event.title)
-        .eq("event_date", event.event_date);
-
-      if ((count ?? 0) > 0) continue;
 
       let venueId: string | null = null;
       if (event.venue) {
-        const { data: existingVenue } = await supabase
+        const { data: venues } = await supabase
           .from("venues")
           .select("id")
           .eq("name", event.venue.name)
-          .eq("city", event.venue.city)
-          .maybeSingle();
+          .limit(1);
 
-        if (existingVenue) {
-          venueId = existingVenue.id;
+        if (venues && venues.length > 0) {
+          venueId = venues[0].id;
         } else {
           const { data: newVenue } = await supabase
             .from("venues")
@@ -85,7 +86,7 @@ async function persistExternalEvents(events: Event[]): Promise<void> {
         image_url: event.image_url,
       });
     } catch {
-      // Skip individual events that fail to persist
+      // Skip individual events that fail
     }
   }
 }
