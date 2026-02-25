@@ -77,7 +77,10 @@ export default function FeedScreen() {
   const eventCounts = useMemo(() => {
     const counts: Partial<Record<EventCategory, number>> = {};
     for (const event of activeEvents) {
-      if (city && event.venue?.city && event.venue.city !== city) continue;
+      if (city) {
+        const eventCity = event.venue?.city;
+        if (!eventCity || eventCity !== city) continue;
+      }
       if (!matchesDateFilter(event.event_date, dateFilter)) continue;
       counts[event.category] = (counts[event.category] ?? 0) + 1;
     }
@@ -92,95 +95,97 @@ export default function FeedScreen() {
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      {/* Header */}
-      <View className="px-4 pb-3 pt-4">
-        <Text className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">
-          Local Nights, Unique Places
-        </Text>
-        <View className="flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-text-primary">LNUP</Text>
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={() => setSearchVisible(true)}
-              className="w-9 h-9 rounded-full bg-card border border-border items-center justify-center"
-            >
-              <Ionicons name="search" size={16} color="#A0A0B8" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setSortVisible(true)}
-              className="w-9 h-9 rounded-full bg-card border border-border items-center justify-center"
-            >
-              <Ionicons name="swap-vertical" size={16} color={sortBy !== "date" ? "#6C5CE7" : "#A0A0B8"} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push("/leaderboard")}
-              className="w-9 h-9 rounded-full bg-card border border-border items-center justify-center"
-            >
-              <Ionicons name="trophy" size={16} color="#FFC107" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setCityDropdownVisible(!cityDropdownVisible)}
-              className="flex-row items-center gap-1 bg-card rounded-full px-3 py-1.5 border border-border"
-            >
-              <Ionicons name="location" size={12} color="#6C5CE7" />
-              <Text className="text-xs text-text-secondary">{city || "Alle Städte"}</Text>
-              <Ionicons name={cityDropdownVisible ? "chevron-up" : "chevron-down"} size={12} color="#6B6B80" />
-            </TouchableOpacity>
+      <View style={{ maxWidth: 520, width: "100%", alignSelf: "center", flex: 1 }}>
+        {/* Header */}
+        <View className="px-4 pb-3 pt-4">
+          <Text className="text-xs font-semibold uppercase tracking-wider text-primary mb-1">
+            Local Nights, Unique Places
+          </Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-2xl font-bold text-text-primary">LNUP</Text>
+            <View className="flex-row items-center gap-2">
+              <TouchableOpacity
+                onPress={() => setSearchVisible(true)}
+                className="w-9 h-9 rounded-full bg-card border border-border items-center justify-center"
+              >
+                <Ionicons name="search" size={16} color="#A0A0B8" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setSortVisible(true)}
+                className="w-9 h-9 rounded-full bg-card border border-border items-center justify-center"
+              >
+                <Ionicons name="swap-vertical" size={16} color={sortBy !== "date" ? "#6C5CE7" : "#A0A0B8"} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/leaderboard")}
+                className="w-9 h-9 rounded-full bg-card border border-border items-center justify-center"
+              >
+                <Ionicons name="trophy" size={16} color="#FFC107" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setCityDropdownVisible(!cityDropdownVisible)}
+                className="flex-row items-center gap-1 bg-card rounded-full px-3 py-1.5 border border-border"
+              >
+                <Ionicons name="location" size={12} color="#6C5CE7" />
+                <Text className="text-xs text-text-secondary">{city || "Alle Städte"}</Text>
+                <Ionicons name={cityDropdownVisible ? "chevron-up" : "chevron-down"} size={12} color="#6B6B80" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
 
-      {/* Date Filter */}
-      <View className="mb-2">
-        <DateFilter selected={dateFilter} onSelect={setDateFilter} />
-      </View>
+        {/* Date Filter */}
+        <View className="mb-2">
+          <DateFilter selected={dateFilter} onSelect={setDateFilter} />
+        </View>
 
-      {/* Category Filter */}
-      <View className="mb-3">
-        <CategoryFilter
-          selected={categoryFilter}
-          onSelect={setCategoryFilter}
-          eventCounts={eventCounts}
+        {/* Category Filter */}
+        <View className="mb-3">
+          <CategoryFilter
+            selected={categoryFilter}
+            onSelect={setCategoryFilter}
+            eventCounts={eventCounts}
+          />
+        </View>
+
+        {/* Event List */}
+        <FlatList
+          data={filteredEvents}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={<TrendingEvents events={filteredEvents} />}
+          renderItem={({ item }) => (
+            <EventCard
+              event={item}
+              onToggleGoing={toggleGoing}
+              isGoing={goingIds.has(item.id)}
+            />
+          )}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+            />
+          }
+          ListEmptyComponent={
+            isLoading ? (
+              <SkeletonCard count={3} />
+            ) : (
+              <View className="items-center justify-center py-20 px-8">
+                <Text className="text-4xl mb-4">🔍</Text>
+                <Text className="text-lg font-semibold text-text-primary text-center mb-2">
+                  Keine Events gefunden
+                </Text>
+                <Text className="text-sm text-text-secondary text-center">
+                  Versuch andere Filter oder schau später nochmal vorbei.
+                </Text>
+              </View>
+            )
+          }
         />
       </View>
-
-      {/* Event List */}
-      <FlatList
-        data={filteredEvents}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={<TrendingEvents events={filteredEvents} />}
-        renderItem={({ item }) => (
-          <EventCard
-            event={item}
-            onToggleGoing={toggleGoing}
-            isGoing={goingIds.has(item.id)}
-          />
-        )}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.primary}
-          />
-        }
-        ListEmptyComponent={
-          isLoading ? (
-            <SkeletonCard count={3} />
-          ) : (
-            <View className="items-center justify-center py-20 px-8">
-              <Text className="text-4xl mb-4">🔍</Text>
-              <Text className="text-lg font-semibold text-text-primary text-center mb-2">
-                Keine Events gefunden
-              </Text>
-              <Text className="text-sm text-text-secondary text-center">
-                Versuch andere Filter oder schau später nochmal vorbei.
-              </Text>
-            </View>
-          )
-        }
-      />
 
       {/* Dropdowns & Modals */}
       <CityDropdown visible={cityDropdownVisible} onClose={() => setCityDropdownVisible(false)} />

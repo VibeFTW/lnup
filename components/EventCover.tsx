@@ -11,14 +11,13 @@ interface EventCoverProps {
 }
 
 export function EventCover({ category, imageUrl, size = "card" }: EventCoverProps) {
-  const [colorStart, colorEnd] = getCategoryGradient(category);
+  const [colorStart] = getCategoryGradient(category);
   const isDetail = size === "detail";
 
   if (imageUrl) {
-    const imageHeight = isDetail ? 220 : 120;
     return (
       <View style={{ backgroundColor: colorStart }}>
-        <View style={{ height: imageHeight }}>
+        <View style={{ aspectRatio: isDetail ? 16 / 9 : 3, maxHeight: isDetail ? 240 : 140 }}>
           <Image
             source={{ uri: imageUrl }}
             style={{ width: "100%", height: "100%" }}
@@ -27,25 +26,22 @@ export function EventCover({ category, imageUrl, size = "card" }: EventCoverProp
           />
         </View>
         <View
-          className="flex-row items-center justify-between px-3 py-1.5"
-          style={{ backgroundColor: colorStart + "20" }}
+          className="flex-row items-center px-3 py-1"
+          style={{ backgroundColor: colorStart + "18" }}
         >
-          <View className="flex-row items-center gap-1.5">
-            <Ionicons name={getCategoryIcon(category) as any} size={12} color={colorStart} />
-            <Text style={{ color: colorStart }} className="text-xs font-semibold">
-              {getCategoryLabel(category)}
-            </Text>
-          </View>
+          <Ionicons name={getCategoryIcon(category) as any} size={11} color={colorStart} />
+          <Text style={{ color: colorStart, marginLeft: 5 }} className="text-xs font-semibold">
+            {getCategoryLabel(category)}
+          </Text>
         </View>
       </View>
     );
   }
 
-  const placeholderHeight = isDetail ? 160 : 90;
   return (
     <View
       className="items-center justify-center"
-      style={{ height: placeholderHeight, backgroundColor: colorStart }}
+      style={{ aspectRatio: isDetail ? 16 / 9 : 4, maxHeight: isDetail ? 160 : 80, backgroundColor: colorStart }}
     >
       <View
         className="absolute inset-0"
@@ -53,10 +49,10 @@ export function EventCover({ category, imageUrl, size = "card" }: EventCoverProp
       />
       <Ionicons
         name={getCategoryIcon(category) as any}
-        size={isDetail ? 40 : 28}
+        size={isDetail ? 36 : 24}
         color="rgba(255,255,255,0.85)"
       />
-      <Text className={`${isDetail ? "text-base" : "text-xs"} font-bold text-white/80 mt-1`}>
+      <Text className={`${isDetail ? "text-sm" : "text-xs"} font-bold text-white/80 mt-1`}>
         {getCategoryLabel(category)}
       </Text>
     </View>

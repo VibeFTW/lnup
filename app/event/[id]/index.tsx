@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Share, Alert, FlatList, Dimensions } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Share, Alert, FlatList, useWindowDimensions } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,6 +24,8 @@ export default function EventDetailScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [inviteVisible, setInviteVisible] = useState(false);
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth, 520);
   const router = useRouter();
   const event = useEventStore((s) => s.getEventById(id));
   const toggleSave = useEventStore((s) => s.toggleSave);
@@ -95,7 +97,8 @@ export default function EventDetailScreen() {
   const isMember = event.is_private && (event.is_member || isMemberState) && !isHost;
 
   return (
-    <View className="flex-1 bg-background">
+    <View className="flex-1 bg-background" style={{ alignItems: "center" }}>
+      <View style={{ maxWidth: 520, width: "100%", flex: 1 }}>
       {/* Floating Header */}
       <View
         className="absolute top-0 left-0 right-0 z-10 flex-row items-center justify-between px-4 py-3"
@@ -157,9 +160,10 @@ export default function EventDetailScreen() {
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {event.images && event.images.length > 1 ? (() => {
           const [catColor] = getCategoryGradient(event.category);
+          const carouselHeight = Math.round(contentWidth * 9 / 16);
           return (
             <View style={{ backgroundColor: catColor }}>
-              <View style={{ height: 220 }}>
+              <View style={{ height: carouselHeight }}>
                 <FlatList
                   data={event.images}
                   horizontal
@@ -167,7 +171,7 @@ export default function EventDetailScreen() {
                   showsHorizontalScrollIndicator={false}
                   keyExtractor={(_, i) => String(i)}
                   renderItem={({ item }) => (
-                    <View style={{ width: Dimensions.get("window").width, height: 220 }}>
+                    <View style={{ width: contentWidth, height: carouselHeight }}>
                       <Image source={{ uri: item }} style={{ width: "100%", height: "100%" }} contentFit="cover" transition={200} />
                     </View>
                   )}
@@ -177,15 +181,13 @@ export default function EventDetailScreen() {
                 </View>
               </View>
               <View
-                className="flex-row items-center px-3 py-1.5"
-                style={{ backgroundColor: catColor + "20" }}
+                className="flex-row items-center px-3 py-1"
+                style={{ backgroundColor: catColor + "18" }}
               >
-                <View className="flex-row items-center gap-1.5">
-                  <Ionicons name={getCategoryIcon(event.category) as any} size={12} color={catColor} />
-                  <Text style={{ color: catColor }} className="text-xs font-semibold">
-                    {getCategoryLabel(event.category)}
-                  </Text>
-                </View>
+                <Ionicons name={getCategoryIcon(event.category) as any} size={11} color={catColor} />
+                <Text style={{ color: catColor, marginLeft: 5 }} className="text-xs font-semibold">
+                  {getCategoryLabel(event.category)}
+                </Text>
               </View>
             </View>
           );
@@ -395,6 +397,7 @@ export default function EventDetailScreen() {
           eventTitle={event.title}
         />
       )}
+      </View>
     </View>
   );
 }

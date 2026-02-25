@@ -2,7 +2,10 @@ import type { Event, EventCategory, Venue } from "@/types";
 import { GEMINI_API_KEY } from "./constants";
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
+
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2000;
 
 const SEARCH_QUERIES = [
   "{city} events diese woche restaurant bar",
@@ -77,34 +80,50 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
 
   const prompt = DISCOVERY_PROMPT.replace(/\{city\}/g, city);
 
-  const response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            {
-              text: `Suchbegriffe für die Recherche:\n${searchQueries.join("\n")}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8192,
+  const requestBody = JSON.stringify({
+    contents: [
+      {
+        parts: [
+          { text: prompt },
+          {
+            text: `Suchbegriffe für die Recherche:\n${searchQueries.join("\n")}`,
+          },
+        ],
       },
-    }),
+    ],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 8192,
+    },
   });
 
-  if (!response.ok) {
+  let response: Response | null = null;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    response = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: requestBody,
+    });
+
+    if (response.ok) break;
+
+    if (response.status === 429 && attempt < MAX_RETRIES) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+      console.warn(`Gemini 429 rate limit, retry ${attempt + 1}/${MAX_RETRIES} in ${delay}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
     const body = await response.text().catch(() => "");
     console.warn(`Gemini API error ${response.status}:`, body);
+
+    if (response.status === 429) {
+      throw new Error("Rate-Limit erreicht. Bitte warte eine Minute und versuche es erneut.");
+    }
     throw new Error(`Gemini API Fehler (${response.status})`);
   }
 
-  const result = await response.json();
+  const result = await (response as Response).json();
   const text =
     result?.candidates?.[0]?.content?.parts
       ?.map((p: any) => p.text ?? "")
