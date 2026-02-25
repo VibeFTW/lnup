@@ -37,7 +37,7 @@ interface TMEvent {
 
 interface TMResponse {
   _embedded?: { events: TMEvent[] };
-  page: { totalElements: number };
+  page: { totalElements: number; totalPages: number; number: number; size: number };
 }
 
 const CITY_TO_ENGLISH: Record<string, string> = {
@@ -59,30 +59,42 @@ export async function fetchTicketmasterEvents(
   if (!apiKey) return [];
 
   try {
-    const params = new URLSearchParams({
-      countryCode: "DE",
-      size: city ? "50" : "200",
-      sort: "date,asc",
-      apikey: apiKey,
-    });
+    const allTmEvents: TMEvent[] = [];
+    const pageSize = 200;
+    const maxPages = city ? 3 : 10;
+    let page = 0;
+    let totalPages = 1;
 
-    if (city) {
-      params.set("city", CITY_TO_ENGLISH[city] ?? city);
+    while (page < totalPages && page < maxPages) {
+      const params = new URLSearchParams({
+        countryCode: "DE",
+        size: String(pageSize),
+        page: String(page),
+        sort: "date,asc",
+        apikey: apiKey,
+      });
+
+      if (city) {
+        params.set("city", CITY_TO_ENGLISH[city] ?? city);
+      }
+
+      const response = await fetch(
+        `https://app.ticketmaster.com/discovery/v2/events.json?${params}`
+      );
+
+      if (!response.ok) {
+        console.warn(`Ticketmaster API error: ${response.status}`);
+        break;
+      }
+
+      const data: TMResponse = await response.json();
+      const pageEvents = data._embedded?.events ?? [];
+      allTmEvents.push(...pageEvents);
+      totalPages = data.page.totalPages;
+      page++;
     }
 
-    const response = await fetch(
-      `https://app.ticketmaster.com/discovery/v2/events.json?${params}`
-    );
-
-    if (!response.ok) {
-      console.warn(`Ticketmaster API error: ${response.status}`);
-      return [];
-    }
-
-    const data: TMResponse = await response.json();
-    const tmEvents = data._embedded?.events ?? [];
-
-    return tmEvents
+    return allTmEvents
       .filter((tm) => tm.dates.status?.code !== "cancelled")
       .map((tm): Event => {
         const tmVenue = tm._embedded?.venues?.[0];
