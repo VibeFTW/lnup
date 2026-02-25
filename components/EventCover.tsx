@@ -17,8 +17,9 @@ export function EventCover({ category, imageUrl, size = "card" }: EventCoverProp
   const textSize = size === "detail" ? "text-lg" : "text-sm";
 
   if (imageUrl) {
+    const imageHeight = size === "detail" ? 220 : 150;
     return (
-      <View style={{ aspectRatio: 16 / 9 }}>
+      <View style={{ height: imageHeight }}>
         <Image
           source={{ uri: imageUrl }}
           style={{ width: "100%", height: "100%" }}
