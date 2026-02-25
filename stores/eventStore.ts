@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { Event, EventPhoto, EventMember } from "@/types";
 import { supabase } from "@/lib/supabase";
 import { fetchExternalEvents } from "@/lib/eventApis";
-import { TICKETMASTER_API_KEY } from "@/lib/constants";
+import { TICKETMASTER_API_KEY, INITIAL_CITIES } from "@/lib/constants";
 import { getRankForScore } from "@/lib/ranks";
 import { scheduleEventReminder, cancelScheduledNotification } from "@/lib/notifications";
 import { useToastStore } from "./toastStore";
@@ -19,13 +19,22 @@ async function persistExternalEvents(events: Event[]): Promise<void> {
     try {
       if (!event.source_url) continue;
 
-      const { data: existing } = await supabase
+      const { data: byUrl } = await supabase
         .from("events")
         .select("id")
         .eq("source_url", event.source_url)
         .maybeSingle();
 
-      if (existing) continue;
+      if (byUrl) continue;
+
+      const { data: byTitle } = await supabase
+        .from("events")
+        .select("id")
+        .eq("title", event.title)
+        .eq("event_date", event.event_date)
+        .maybeSingle();
+
+      if (byTitle) continue;
 
       let venueId: string | null = null;
       if (event.venue) {
@@ -229,14 +238,24 @@ export const useEventStore = create<EventState>((set, get) => ({
 
       set({ events, savedEventIds: savedIds, goingEventIds: goingIds });
 
-      const hasApiKeys = !!TICKETMASTER_API_KEY;
-      if (hasApiKeys && city) {
+      if (TICKETMASTER_API_KEY) {
         try {
-          const externalEvents = await fetchExternalEvents(city);
-          get().mergeExternalEvents(externalEvents);
-          persistExternalEvents(externalEvents).catch((err) =>
-            console.warn("Persist external events failed:", err)
-          );
+          const citiesToFetch = city ? [city] : [...INITIAL_CITIES];
+          const allExternal: Event[] = [];
+
+          for (const c of citiesToFetch) {
+            try {
+              const cityEvents = await fetchExternalEvents(c);
+              allExternal.push(...cityEvents);
+            } catch {
+              console.warn(`External fetch failed for ${c}`);
+            }
+          }
+
+          if (allExternal.length > 0) {
+            get().mergeExternalEvents(allExternal);
+            await persistExternalEvents(allExternal);
+          }
         } catch (error) {
           console.warn("External event fetch failed:", error);
         }
@@ -377,7 +396,23 @@ export const useEventStore = create<EventState>((set, get) => ({
   mergeExternalEvents: (externalEvents) => {
     set((state) => {
       const existingIds = new Set(state.events.map((e) => e.id));
-      const newEvents = externalEvents.filter((e) => !existingIds.has(e.id));
+      const existingUrls = new Set(
+        state.events.map((e) => e.source_url).filter(Boolean)
+      );
+      const existingKeys = new Set(
+        state.events.map((e) => `${e.title.toLowerCase().trim()}|${e.event_date}`)
+      );
+
+      const newEvents = externalEvents.filter((e) => {
+        if (existingIds.has(e.id)) return false;
+        if (e.source_url && existingUrls.has(e.source_url)) return false;
+        const key = `${e.title.toLowerCase().trim()}|${e.event_date}`;
+        if (existingKeys.has(key)) return false;
+        existingKeys.add(key);
+        if (e.source_url) existingUrls.add(e.source_url);
+        return true;
+      });
+
       if (newEvents.length === 0) return state;
       return { events: [...state.events, ...newEvents] };
     });
