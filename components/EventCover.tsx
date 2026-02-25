@@ -17,14 +17,12 @@ export function EventCover({ category, imageUrl, size = "card" }: EventCoverProp
   const textSize = size === "detail" ? "text-lg" : "text-sm";
 
   if (imageUrl) {
-    const imageHeight = size === "detail" ? 220 : 160;
     return (
-      <View style={{ height: imageHeight, backgroundColor: "#000" }}>
+      <View style={{ aspectRatio: 16 / 9 }}>
         <Image
           source={{ uri: imageUrl }}
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
-          contentPosition="top"
           transition={200}
         />
         <View className="absolute bottom-2 left-2 flex-row items-center gap-1 rounded-full px-2.5 py-1" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
