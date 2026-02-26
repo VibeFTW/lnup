@@ -38,6 +38,7 @@ export default function UserProfileScreen() {
           rank: (data.rank ?? getRankForScore(data.trust_score).id) as RankId,
           email_verified: data.email_verified,
           phone_verified: data.phone_verified,
+          show_history: data.show_history ?? true,
           created_at: data.created_at,
           events_posted: data.events_posted ?? 0,
           events_confirmed: data.events_confirmed ?? 0,
@@ -79,6 +80,32 @@ export default function UserProfileScreen() {
   const nextRank = getNextRank(rank.id);
   const progress = getProgressToNextRank(user.trust_score);
   const userEvents = getEventsByCreator(user.id);
+  const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user.show_history) return;
+    async function fetchAttended() {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: confirmations } = await supabase
+        .from("event_confirmations")
+        .select("event_id")
+        .eq("user_id", user.id)
+        .in("status", ["going", "attended"]);
+      if (!confirmations || confirmations.length === 0) return;
+      const eventIds = confirmations.map((c: any) => c.event_id);
+      const { data: events } = await supabase
+        .from("events_with_counts")
+        .select("id, title, event_date, time_start, category, created_by, venues(name, city)")
+        .in("id", eventIds)
+        .lt("event_date", today)
+        .order("event_date", { ascending: false })
+        .limit(10);
+      if (events) {
+        setAttendedEvents(events.filter((e: any) => e.created_by !== user.id));
+      }
+    }
+    fetchAttended();
+  }, [user.id, user.show_history]);
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -198,7 +225,7 @@ export default function UserProfileScreen() {
         </View>
 
         {/* User's Events */}
-        <View className="mx-4 mb-12">
+        <View className="mx-4 mb-6">
           <Text className="text-sm font-semibold text-text-primary mb-3">
             Events von {user.display_name}
           </Text>
@@ -245,6 +272,45 @@ export default function UserProfileScreen() {
             </View>
           )}
         </View>
+
+        {/* Dabei gewesen (public, if allowed) */}
+        {user.show_history && attendedEvents.length > 0 && (
+          <View className="mx-4 mb-12">
+            <Text className="text-sm font-semibold text-text-primary mb-3">
+              Dabei gewesen
+            </Text>
+            <View className="gap-2">
+              {attendedEvents.map((event: any) => (
+                <TouchableOpacity
+                  key={event.id}
+                  onPress={() => router.push(`/event/${event.id}`)}
+                  className="bg-card rounded-xl border border-border p-3 flex-row items-center gap-3"
+                  style={{ opacity: 0.7 }}
+                >
+                  <View
+                    className="w-10 h-10 rounded-lg items-center justify-center"
+                    style={{ backgroundColor: "#6C5CE7" + "20" }}
+                  >
+                    <Ionicons
+                      name={getCategoryIcon(event.category) as any}
+                      size={20}
+                      color="#6C5CE7"
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-text-primary" numberOfLines={1}>
+                      {event.title}
+                    </Text>
+                    <Text className="text-xs text-text-muted">
+                      {formatEventDate(event.event_date)} · {formatTime(event.time_start)}
+                      {event.venues?.city ? ` · ${event.venues.city}` : ""}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );

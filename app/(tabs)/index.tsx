@@ -47,7 +47,11 @@ export default function FeedScreen() {
   const [sortVisible, setSortVisible] = useState(false);
 
   const activeEvents = useMemo(() => {
-    return events.filter((e) => e.status === "active");
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(0, 0, 0, 0);
+    const cutoff = yesterday.toISOString().split("T")[0];
+    return events.filter((e) => e.status === "active" && e.event_date >= cutoff);
   }, [events]);
 
   const filteredEvents = useMemo(() => {

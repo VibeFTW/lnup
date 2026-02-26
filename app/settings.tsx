@@ -102,6 +102,39 @@ function ThemeSelector() {
   );
 }
 
+function HistoryToggle() {
+  const user = useAuthStore((s) => s.user);
+  const [showHistory, setShowHistory] = useState(user?.show_history ?? true);
+
+  const toggle = async () => {
+    const next = !showHistory;
+    setShowHistory(next);
+    if (user) {
+      await supabase.from("profiles").update({ show_history: next }).eq("id", user.id);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={toggle}
+      className="flex-row items-center justify-between px-4 py-3"
+    >
+      <View className="flex-row items-center gap-3 flex-1">
+        <Ionicons name="eye-outline" size={20} color="#6C5CE7" />
+        <View className="flex-1">
+          <Text className="text-sm text-text-primary">Event-Verlauf öffentlich</Text>
+          <Text className="text-xs text-text-muted">Andere sehen bei welchen Events du warst</Text>
+        </View>
+      </View>
+      <Ionicons
+        name={showHistory ? "toggle" : "toggle-outline"}
+        size={36}
+        color={showHistory ? "#6C5CE7" : "#6B6B80"}
+      />
+    </TouchableOpacity>
+  );
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -194,6 +227,11 @@ export default function SettingsScreen() {
         {/* Design */}
         <SettingsSection title="Design">
           <ThemeSelector />
+        </SettingsSection>
+
+        {/* Privatsphaere */}
+        <SettingsSection title="Privatsph\u00e4re">
+          <HistoryToggle />
         </SettingsSection>
 
         {/* App */}

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -5,10 +6,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/stores/authStore";
 import { useEventStore } from "@/stores/eventStore";
 import { useThemeStore } from "@/stores/themeStore";
+import { supabase } from "@/lib/supabase";
 import { SkeletonProfile } from "@/components/SkeletonProfile";
 import { getRankForScore, getNextRank, getProgressToNextRank } from "@/lib/ranks";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryIcon } from "@/lib/categories";
+import type { Event } from "@/types";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -52,6 +55,48 @@ export default function ProfileScreen() {
   const nextRank = getNextRank(rank.id);
   const progress = getProgressToNextRank(user.trust_score);
   const myEvents = getEventsByCreator(user.id);
+  const [attendedEvents, setAttendedEvents] = useState<Event[]>([]);
+  const [showPastHosted, setShowPastHosted] = useState(false);
+  const [showAttended, setShowAttended] = useState(false);
+
+  const today = new Date().toISOString().split("T")[0];
+  const activeHosted = myEvents.filter((e) => e.event_date >= today);
+  const pastHosted = myEvents.filter((e) => e.event_date < today);
+
+  useEffect(() => {
+    async function fetchAttended() {
+      const { data: confirmations } = await supabase
+        .from("event_confirmations")
+        .select("event_id")
+        .eq("user_id", user.id)
+        .in("status", ["going", "attended"]);
+
+      if (!confirmations || confirmations.length === 0) return;
+
+      const eventIds = confirmations.map((c: any) => c.event_id);
+      const { data: events } = await supabase
+        .from("events_with_counts")
+        .select("*, venues(*)")
+        .in("id", eventIds)
+        .lt("event_date", today)
+        .order("event_date", { ascending: false });
+
+      if (events) {
+        const filtered = events.filter((e: any) => e.created_by !== user.id);
+        setAttendedEvents(filtered.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          event_date: row.event_date,
+          time_start: row.time_start,
+          category: row.category,
+          venue: row.venues ? { name: row.venues.name, city: row.venues.city } : undefined,
+          going_count: row.going_count ?? 0,
+          saves_count: row.saves_count ?? 0,
+        } as any)));
+      }
+    }
+    fetchAttended();
+  }, [user.id]);
 
   return (
     <ScrollView
@@ -156,10 +201,10 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Meine Events */}
+      {/* Gehostete Events */}
       <View className="mx-4 mb-6">
         <Text className="text-sm font-semibold text-text-primary mb-3">
-          Meine Events
+          Gehostete Events
         </Text>
         {myEvents.length === 0 ? (
           <TouchableOpacity
@@ -173,42 +218,60 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         ) : (
           <View className="gap-2">
-            {myEvents.map((event) => (
-              <TouchableOpacity
-                key={event.id}
-                onPress={() => router.push(`/event/${event.id}`)}
-                className="bg-card rounded-xl border border-border p-3 flex-row items-center gap-3"
-              >
-                <View
-                  className="w-10 h-10 rounded-lg items-center justify-center"
-                  style={{ backgroundColor: "#6C5CE7" + "20" }}
-                >
-                  <Ionicons
-                    name={getCategoryIcon(event.category) as any}
-                    size={20}
-                    color="#6C5CE7"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-text-primary" numberOfLines={1}>
-                    {event.title}
-                  </Text>
-                  <Text className="text-xs text-text-muted">
-                    {formatEventDate(event.event_date)} · {formatTime(event.time_start)}
-                  </Text>
-                </View>
-                <View className="items-end gap-0.5">
-                  <View className="flex-row items-center gap-1">
-                    <Ionicons name="people-outline" size={12} color="#00D2FF" />
-                    <Text className="text-xs text-secondary">{event.going_count}</Text>
-                  </View>
-                  <View className="flex-row items-center gap-1">
-                    <Ionicons name="bookmark-outline" size={12} color="#6B6B80" />
-                    <Text className="text-xs text-text-muted">{event.saves_count}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
+            {activeHosted.map((event) => (
+              <EventRow key={event.id} event={event} onPress={() => router.push(`/event/${event.id}`)} />
             ))}
+            {pastHosted.length > 0 && (
+              <>
+                <TouchableOpacity
+                  onPress={() => setShowPastHosted(!showPastHosted)}
+                  className="flex-row items-center justify-between bg-card/50 rounded-lg px-3 py-2 border border-border"
+                >
+                  <Text className="text-xs text-text-muted">
+                    Vergangene Events ({pastHosted.length})
+                  </Text>
+                  <Ionicons
+                    name={showPastHosted ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    color="#A0A0B8"
+                  />
+                </TouchableOpacity>
+                {showPastHosted && pastHosted.map((event) => (
+                  <EventRow key={event.id} event={event} onPress={() => router.push(`/event/${event.id}`)} isPast />
+                ))}
+              </>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Dabei gewesen */}
+      <View className="mx-4 mb-6">
+        <Text className="text-sm font-semibold text-text-primary mb-3">
+          Dabei gewesen
+        </Text>
+        {attendedEvents.length === 0 ? (
+          <View className="bg-card rounded-xl border border-border p-6 items-center">
+            <Ionicons name="calendar-outline" size={28} color="#A0A0B8" />
+            <Text className="text-xs text-text-muted mt-2">
+              Noch keine vergangenen Events
+            </Text>
+          </View>
+        ) : (
+          <View className="gap-2">
+            {(showAttended ? attendedEvents : attendedEvents.slice(0, 3)).map((event) => (
+              <EventRow key={event.id} event={event} onPress={() => router.push(`/event/${event.id}`)} isPast />
+            ))}
+            {attendedEvents.length > 3 && (
+              <TouchableOpacity
+                onPress={() => setShowAttended(!showAttended)}
+                className="flex-row items-center justify-center py-2"
+              >
+                <Text className="text-xs text-primary font-semibold">
+                  {showAttended ? "Weniger anzeigen" : `Alle ${attendedEvents.length} anzeigen`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -258,5 +321,54 @@ export default function ProfileScreen() {
 
       <View className="mb-12" />
     </ScrollView>
+  );
+}
+
+function EventRow({ event, onPress, isPast }: { event: any; onPress: () => void; isPast?: boolean }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className="bg-card rounded-xl border border-border p-3 flex-row items-center gap-3"
+      style={isPast ? { opacity: 0.7 } : undefined}
+    >
+      <View
+        className="w-10 h-10 rounded-lg items-center justify-center"
+        style={{ backgroundColor: "#6C5CE7" + "20" }}
+      >
+        <Ionicons
+          name={getCategoryIcon(event.category) as any}
+          size={20}
+          color="#6C5CE7"
+        />
+      </View>
+      <View className="flex-1">
+        <Text className="text-sm font-semibold text-text-primary" numberOfLines={1}>
+          {event.title}
+        </Text>
+        <Text className="text-xs text-text-muted">
+          {formatEventDate(event.event_date)} · {formatTime(event.time_start)}
+          {event.venue?.city ? ` · ${event.venue.city}` : ""}
+        </Text>
+      </View>
+      <View className="items-end gap-0.5">
+        {isPast && (
+          <View className="bg-card-hover rounded-full px-2 py-0.5">
+            <Text className="text-xs text-text-muted">Vergangen</Text>
+          </View>
+        )}
+        {!isPast && (
+          <>
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="people-outline" size={12} color="#00D2FF" />
+              <Text className="text-xs text-secondary">{event.going_count}</Text>
+            </View>
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="bookmark-outline" size={12} color="#6B6B80" />
+              <Text className="text-xs text-text-muted">{event.saves_count}</Text>
+            </View>
+          </>
+        )}
+      </View>
+    </TouchableOpacity>
   );
 }

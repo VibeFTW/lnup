@@ -48,6 +48,7 @@ export interface Profile {
   rank: RankId;
   email_verified: boolean;
   phone_verified: boolean;
+  show_history: boolean;
   created_at: string;
   events_posted: number;
   events_confirmed: number;

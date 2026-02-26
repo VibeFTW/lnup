@@ -37,6 +37,7 @@ async function fetchProfileById(userId: string): Promise<Profile | null> {
     rank: (data.rank ?? getRankForScore(data.trust_score).id) as RankId,
     email_verified: data.email_verified,
     phone_verified: data.phone_verified,
+    show_history: data.show_history ?? true,
     created_at: data.created_at,
     events_posted: data.events_posted ?? 0,
     events_confirmed: data.events_confirmed ?? 0,

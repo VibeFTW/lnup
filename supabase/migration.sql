@@ -14,6 +14,7 @@ CREATE TABLE public.profiles (
   trust_score INTEGER NOT NULL DEFAULT 0,
   email_verified BOOLEAN NOT NULL DEFAULT false,
   phone_verified BOOLEAN NOT NULL DEFAULT false,
+  show_history BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -533,3 +534,21 @@ CREATE TABLE public.notification_preferences (
 
 ALTER TABLE public.notification_preferences ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own preferences" ON public.notification_preferences FOR ALL USING (auth.uid() = user_id);
+
+-- ============================================================
+-- ARCHIVE PAST EVENTS (run daily via pg_cron or manually)
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.archive_past_events()
+RETURNS INTEGER AS $$
+DECLARE
+  archived_count INTEGER;
+BEGIN
+  UPDATE public.events
+  SET status = 'past'
+  WHERE status = 'active'
+    AND event_date < CURRENT_DATE - INTERVAL '1 day';
+  GET DIAGNOSTICS archived_count = ROW_COUNT;
+  RETURN archived_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
