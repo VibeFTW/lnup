@@ -37,12 +37,6 @@ export default function FeedScreen() {
       setHasFetched(true);
     }
   }, []);
-
-  useEffect(() => {
-    if (hasFetched) {
-      fetchEvents(city || undefined);
-    }
-  }, [city]);
   const [searchVisible, setSearchVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
 
@@ -58,7 +52,7 @@ export default function FeedScreen() {
     const filtered = activeEvents.filter((event) => {
       if (city) {
         const eventCity = event.venue?.city;
-        if (!eventCity || eventCity !== city) return false;
+        if (!eventCity || eventCity.toLowerCase() !== city.toLowerCase()) return false;
       }
       if (!matchesDateFilter(event.event_date, dateFilter)) return false;
       if (categoryFilter && event.category !== categoryFilter) return false;
@@ -83,7 +77,7 @@ export default function FeedScreen() {
     for (const event of activeEvents) {
       if (city) {
         const eventCity = event.venue?.city;
-        if (!eventCity || eventCity !== city) continue;
+        if (!eventCity || eventCity.toLowerCase() !== city.toLowerCase()) continue;
       }
       if (!matchesDateFilter(event.event_date, dateFilter)) continue;
       counts[event.category] = (counts[event.category] ?? 0) + 1;

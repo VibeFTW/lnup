@@ -104,7 +104,9 @@ export function CityDropdown({ visible, onClose }: CityDropdownProps) {
           `${discovered.length} Events in ${cityName} gefunden!`,
           "success"
         );
-        handleSelect(cityName);
+        setCity(cityName);
+        setSearch("");
+        onClose();
       } else {
         useToastStore.getState().showToast(
           `Keine Events in ${cityName} gefunden.`,
