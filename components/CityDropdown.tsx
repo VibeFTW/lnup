@@ -97,11 +97,13 @@ export function CityDropdown({ visible, onClose }: CityDropdownProps) {
       const discovered = await discoverLocalEvents(cityName);
       if (discovered.length > 0) {
         useEventStore.getState().mergeExternalEvents(discovered);
-        persistAiEvents(discovered).catch((err) =>
-          console.warn("AI event persist failed:", err)
-        );
+        try {
+          await persistAiEvents(discovered);
+        } catch (persistErr) {
+          console.warn("AI event persist failed:", persistErr);
+        }
         useToastStore.getState().showToast(
-          `${discovered.length} Events in ${cityName} gefunden!`,
+          `${discovered.length} Events in ${cityName} gefunden & gespeichert!`,
           "success"
         );
         setCity(cityName);
@@ -122,7 +124,7 @@ export function CityDropdown({ visible, onClose }: CityDropdownProps) {
     }
   };
 
-  const searchNotInList = search.trim().length > 1 &&
+  const searchNotInList = search.trim().length >= 3 &&
     !cities.some((c) => c.toLowerCase() === search.trim().toLowerCase());
 
   if (!visible) return null;
