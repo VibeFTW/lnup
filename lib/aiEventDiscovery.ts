@@ -130,7 +130,7 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
   }
 
   const result = await (response as Response).json();
-  const text =
+  let text =
     result?.candidates?.[0]?.content?.parts
       ?.map((p: any) => p.text ?? "")
       .join("") ?? "";
@@ -139,18 +139,32 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
     throw new Error("Gemini hat keine Antwort zurückgegeben.");
   }
 
+  text = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "");
+
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
     console.warn("AI Discovery: No JSON array in response:", text.substring(0, 200));
     return [];
   }
 
+  let jsonStr = jsonMatch[0];
   let discovered: DiscoveredEvent[];
   try {
-    discovered = JSON.parse(jsonMatch[0]);
+    discovered = JSON.parse(jsonStr);
   } catch {
-    console.warn("AI Discovery: Failed to parse JSON:", jsonMatch[0].substring(0, 200));
-    throw new Error("KI-Antwort konnte nicht verarbeitet werden.");
+    const lastComplete = jsonStr.lastIndexOf("},");
+    if (lastComplete > 0) {
+      jsonStr = jsonStr.substring(0, lastComplete + 1) + "]";
+      try {
+        discovered = JSON.parse(jsonStr);
+      } catch {
+        console.warn("AI Discovery: Failed to parse truncated JSON");
+        return [];
+      }
+    } else {
+      console.warn("AI Discovery: Failed to parse JSON:", jsonStr.substring(0, 200));
+      return [];
+    }
   }
 
   if (!Array.isArray(discovered)) return [];
