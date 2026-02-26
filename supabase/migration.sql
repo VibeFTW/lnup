@@ -477,6 +477,7 @@ CREATE TABLE public.cities (
   lat DOUBLE PRECISION,
   lng DOUBLE PRECISION,
   active BOOLEAN NOT NULL DEFAULT true,
+  scan_enabled BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -485,11 +486,11 @@ CREATE POLICY "Cities are public" ON public.cities FOR SELECT USING (true);
 CREATE POLICY "Cities can be auto-added" ON public.cities FOR INSERT WITH CHECK (true);
 CREATE POLICY "Cities can be updated" ON public.cities FOR UPDATE USING (true);
 
-INSERT INTO public.cities (name, lat, lng) VALUES
-  ('Deggendorf', 48.8317, 12.9589),
-  ('Passau', 48.5665, 13.4319),
-  ('Straubing', 48.8825, 12.5738),
-  ('Regensburg', 49.0134, 12.1016),
+INSERT INTO public.cities (name, lat, lng, scan_enabled) VALUES
+  ('Deggendorf', 48.8317, 12.9589, true),
+  ('Passau', 48.5665, 13.4319, true),
+  ('Straubing', 48.8825, 12.5738, true),
+  ('Regensburg', 49.0134, 12.1016, true),
   ('Landshut', 48.5361, 12.1522),
   ('Plattling', 48.7773, 12.8783),
   ('Vilshofen', 48.6264, 13.1883),
