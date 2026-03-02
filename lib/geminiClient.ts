@@ -106,27 +106,54 @@ function extractGroundingUrls(candidate: any): string[] {
 export function parseJsonArray<T>(text: string): T[] {
   if (!text) return [];
 
+  // 1. Direkt parsen
   try {
     const parsed = JSON.parse(text);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "");
-    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return [];
+  } catch { /* weiter */ }
 
+  // 2. Markdown-Codeblöcke und Prosa vor/nach dem Array entfernen
+  const cleaned = text
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  // Alles ab dem ersten "[" nehmen
+  const startIdx = cleaned.indexOf("[");
+  if (startIdx < 0) return [];
+
+  let jsonStr = cleaned.substring(startIdx);
+
+  // 3. Vollständiges Array?
+  const endIdx = jsonStr.lastIndexOf("]");
+  if (endIdx > 0) {
+    const candidate = jsonStr.substring(0, endIdx + 1);
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(candidate);
       return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      const lastComplete = jsonMatch[0].lastIndexOf("},");
-      if (lastComplete > 0) {
-        try {
-          return JSON.parse(jsonMatch[0].substring(0, lastComplete + 1) + "]");
-        } catch {
-          return [];
-        }
-      }
-      return [];
+    } catch { /* weiter – evtl. korrupte Einträge */ }
+  }
+
+  // 4. Abgeschnitten (kein schließendes "]" oder JSON-Fehler):
+  //    Letztes vollständiges Objekt finden und Array schließen
+  const lastBrace = jsonStr.lastIndexOf("}");
+  if (lastBrace > 0) {
+    jsonStr = jsonStr.substring(0, lastBrace + 1);
+    // Trailing-Komma entfernen, dann schließen
+    const trimmedForParse = jsonStr.replace(/,\s*$/, "") + "]";
+    try {
+      const parsed = JSON.parse(trimmedForParse);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { /* weiter */ }
+
+    // Letztes vollständiges "}, " als Abschnitt nehmen
+    const lastComplete = jsonStr.lastIndexOf("},");
+    if (lastComplete > 0) {
+      try {
+        return JSON.parse(jsonStr.substring(0, lastComplete + 1) + "]");
+      } catch { /* aufgeben */ }
     }
   }
+
+  return [];
 }

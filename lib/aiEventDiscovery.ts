@@ -35,7 +35,9 @@ NICHT zurückgeben:
 - Events die bereits stattgefunden haben (vor ${today})
 - Erfundene oder vermutete Events
 
-KATEGORIEN: nightlife, food_drink, concert, festival, sports, art, family, other`;
+KATEGORIEN: nightlife, food_drink, concert, festival, sports, art, family, other
+
+ANTWORTFORMAT: Antworte NUR mit einem JSON-Array. Kein einleitender Text, keine Erklärungen, kein Markdown. Nur das reine JSON-Array.`;
 }
 
 function buildUserPrompt(city: string, today: string, searchQueries: string[]) {
@@ -73,7 +75,9 @@ BEISPIEL für ein korrektes Event (Webseite):
 [{"title":"Pub Quiz Night","description":"Wöchentliches Pub Quiz mit Preisen. Teams bis 6 Personen.","date":"${today}","time_start":"20:00","time_end":"22:30","venue_name":"Irish Pub Downtown","venue_address":"Hauptstraße 12, ${city}","city":"${city}","category":"nightlife","price_info":"5€ pro Person","source_url":"https://example.com/events/pub-quiz","confidence":0.85}]
 BEISPIEL mit Instagram-Quelle: source_url kann auch "https://www.instagram.com/p/ABC123/" oder die Instagram-Seite einer Location sein.
 
-Leeres Array [] wenn nichts gefunden.`;
+Leeres Array [] wenn nichts gefunden.
+
+WICHTIG: Antworte NUR mit dem JSON-Array. Kein Text davor oder danach.`;
 }
 
 interface DiscoveredEvent {

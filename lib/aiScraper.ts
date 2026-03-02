@@ -33,7 +33,9 @@ Gib ein JSON-Array zurück. Jedes Event hat folgende Felder:
 - price_info (string): Preisinformation (z.B. "10€", "Kostenlos", "Ab 15€")
 - confidence (number): Wie sicher du dir bist, 0.0 bis 1.0
 
-Wenn keine Events gefunden werden, gib ein leeres Array zurück: []`;
+Wenn keine Events gefunden werden, gib ein leeres Array zurück: []
+
+WICHTIG: Antworte NUR mit dem JSON-Array. Kein Text davor oder danach, kein Markdown.`;
 
 /** Versucht, den Inhalt einer URL zu laden (funktioniert nur bei CORS-freundlichen Seiten). */
 async function fetchUrlContent(url: string): Promise<string | null> {
