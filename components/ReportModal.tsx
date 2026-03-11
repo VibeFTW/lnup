@@ -34,6 +34,7 @@ export function ReportModal({ visible, onClose, eventId }: ReportModalProps) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         showToast("Bitte melde dich an, um Events zu melden.", "error");
+        setIsSubmitting(false);
         return;
       }
 

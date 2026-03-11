@@ -45,16 +45,17 @@ export function PhotoUpload({ eventId }: PhotoUploadProps) {
     if (!previewUri || !user) return;
 
     setUploading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Simulate upload delay (replace with Supabase Storage upload)
-    await new Promise((r) => setTimeout(r, 800));
-
-    uploadPhoto(eventId, previewUri, user.id);
-    setPreviewUri(null);
-    setUploading(false);
-
-    showToast("Foto eingereicht — wartet auf Freigabe", "success");
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      await uploadPhoto(eventId, previewUri, user.id);
+      setPreviewUri(null);
+      showToast("Foto eingereicht — wartet auf Freigabe", "success");
+    } catch (e) {
+      console.warn("Photo upload failed:", e);
+      showToast("Foto konnte nicht hochgeladen werden.", "error");
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (previewUri) {

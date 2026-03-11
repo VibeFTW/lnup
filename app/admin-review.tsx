@@ -31,14 +31,20 @@ export default function AdminReviewScreen() {
 
   async function loadPendingEvents() {
     setIsLoading(true);
-    const { data, error } = await supabase
-      .from("events")
-      .select("*, venues(name, city)")
-      .eq("status", "pending_review")
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("events")
+        .select("*, venues(name, city)")
+        .eq("status", "pending_review")
+        .order("created_at", { ascending: false });
 
-    if (!error && data) setEvents(data);
-    setIsLoading(false);
+      if (!error && data) setEvents(data);
+      else if (error) console.warn("loadPendingEvents error:", error.message);
+    } catch (e) {
+      console.warn("loadPendingEvents failed:", e);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleApprove(eventId: string) {

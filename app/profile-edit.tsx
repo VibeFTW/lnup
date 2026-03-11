@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -32,6 +32,15 @@ export default function ProfileEditScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatar_url ?? null);
   const [newAvatarLocal, setNewAvatarLocal] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.display_name ?? "");
+      setUsername(user.username ?? "");
+      setBio(user.bio ?? "");
+      setAvatarUri(user.avatar_url ?? null);
+    }
+  }, [user?.id]);
 
   const pickAvatar = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

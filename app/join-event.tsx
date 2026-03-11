@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS } from "@/lib/constants";
+import { useToastStore } from "@/stores/toastStore";
 
 export default function JoinEventScreen() {
   const insets = useSafeAreaInsets();
@@ -13,7 +14,10 @@ export default function JoinEventScreen() {
   const handleJoin = () => {
     Keyboard.dismiss();
     const trimmed = code.trim().toUpperCase();
-    if (!trimmed) return;
+    if (!trimmed) {
+      useToastStore.getState().showToast("Bitte gib einen Einladungscode ein.", "error");
+      return;
+    }
     router.push(`/invite/${trimmed}`);
   };
 
@@ -50,6 +54,8 @@ export default function JoinEventScreen() {
           autoCapitalize="characters"
           autoFocus
           textAlign="center"
+          returnKeyType="go"
+          onSubmitEditing={handleJoin}
           className="bg-card border border-border rounded-xl px-4 py-4 text-text-primary text-2xl font-black tracking-widest mb-6"
         />
 

@@ -24,7 +24,7 @@ export function PhotoGallery({ photos }: PhotoGalleryProps) {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [initialIndex, setInitialIndex] = useState(0);
 
-  if (photos.length === 0) return null;
+  if (!photos || photos.length === 0) return null;
 
   const openViewer = (index: number) => {
     setInitialIndex(index);

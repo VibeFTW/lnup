@@ -95,33 +95,38 @@ export default function LeaderboardScreen() {
 
   useEffect(() => {
     async function loadLeaderboard() {
-      const { data, error } = await supabase
-        .from("profiles_with_stats")
-        .select("*")
-        .order("trust_score", { ascending: false })
-        .limit(50);
+      try {
+        const { data, error } = await supabase
+          .from("profiles_with_stats")
+          .select("*")
+          .order("trust_score", { ascending: false })
+          .limit(50);
 
-      if (!error && data) {
-        setProfiles(
-          data.map((row: any) => ({
-            id: row.id,
-            username: row.username,
-            display_name: row.display_name,
-            avatar_url: row.avatar_url,
-            bio: row.bio ?? null,
-            role: row.role,
-            trust_score: row.trust_score,
-            rank: (row.rank ?? getRankForScore(row.trust_score).id) as RankId,
-            email_verified: row.email_verified,
-            phone_verified: row.phone_verified,
-            created_at: row.created_at,
-            events_posted: row.events_posted ?? 0,
-            events_confirmed: row.events_confirmed ?? 0,
-            reports_count: row.reports_count ?? 0,
-          }))
-        );
+        if (!error && data) {
+          setProfiles(
+            data.map((row: any) => ({
+              id: row.id,
+              username: row.username,
+              display_name: row.display_name,
+              avatar_url: row.avatar_url,
+              bio: row.bio ?? null,
+              role: row.role,
+              trust_score: row.trust_score,
+              rank: (row.rank ?? getRankForScore(row.trust_score).id) as RankId,
+              email_verified: row.email_verified,
+              phone_verified: row.phone_verified,
+              created_at: row.created_at,
+              events_posted: row.events_posted ?? 0,
+              events_confirmed: row.events_confirmed ?? 0,
+              reports_count: row.reports_count ?? 0,
+            }))
+          );
+        }
+      } catch (e) {
+        console.warn("loadLeaderboard error:", e);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
     loadLeaderboard();
   }, []);
