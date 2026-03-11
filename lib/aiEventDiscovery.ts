@@ -9,16 +9,14 @@ function toTitleCase(str: string): string {
 }
 
 const SEARCH_QUERIES = [
-  "{city} events diese woche restaurant bar",
-  "{city} veranstaltungen lokal gastronomie",
-  "{city} pub quiz karaoke comedy abend",
-  "{city} food event themenabend restaurant",
-  "{city} live musik kneipe bar club",
+  "{city} veranstaltungen diese woche",
+  "{city} events März 2026",
+  "{city} veranstaltungskalender",
+  "{city} party konzert club bar",
+  "{city} live musik comedy karaoke",
   "{city} flohmarkt markt straßenfest",
-  "{city} workshop kurs kreativ abend",
-  "{city} club bar Instagram events Termine",
-  "{city} Instagram Location events Party Konzert",
-  "site:instagram.com {city} club Party Event",
+  "{city} workshop kurs veranstaltung",
+  "was ist los in {city}",
 ];
 
 function buildSystemInstruction(city: string, today: string, endDate: string, weekday: string) {
@@ -37,66 +35,39 @@ So gehst du bei jedem Instagram-Account vor:
 4. Die source_url kann der Instagram-Post, das Profil ODER eine verlinkte Webseite sein.`
     : "";
 
-  return `Du bist ein erfahrener Event-Scout für die Stadt ${city} in Deutschland.
-Deine Aufgabe: Finde ECHTE, AKTUELLE Events die zwischen ${today} (${weekday}) und ${endDate} stattfinden.
+  return `Du bist ein Event-Scout für ${city} (Deutschland).
+Finde ECHTE Events zwischen ${today} (${weekday}) und ${endDate}.
 ${websiteList}${instaList}
 
-REGELN:
-- Erfinde NIEMALS Events. Nur Events die du tatsächlich über die Google-Suche findest.
-- Jedes Event MUSS eine echte, funktionierende source_url haben (Webseite ODER Instagram-Beitrag/Seite).
-- Suche auch gezielt auf Instagram: Clubs, Bars und Locations posten dort oft ihre Events. Instagram-URLs (instagram.com/...) sind als source_url erlaubt.
-- Gib NUR Events zurück bei denen du dir sicher bist (confidence >= 0.7).
-- Durchsuche ZUERST die oben genannten Quellen (falls vorhanden), DANN suche allgemein.
+SUCHSTRATEGIE:
+1. Suche "${city} veranstaltungen ${today.substring(0, 7)}" und "${city} events"
+2. Öffne die Ergebnisse und extrahiere konkrete Events mit Datum
+3. Suche auf den oben genannten Webseiten (falls vorhanden)
+4. Suche auf Instagram nach den genannten Accounts
+5. Auch reguläre Events wie Wochenmärkte, Stammtische, wiederkehrende Partys SIND gültig, solange sie im Zeitraum stattfinden
 
-NICHT zurückgeben:
-- Regelmäßige Öffnungszeiten von Restaurants/Bars (z.B. "Happy Hour jeden Freitag")
-- Dauerausstellungen in Museen
-- Events die bereits stattgefunden haben (vor ${today})
-- Erfundene oder vermutete Events
+REGELN:
+- Erfinde KEINE Events. Nur was du in Suchergebnissen findest.
+- source_url: Die URL wo du das Event gefunden hast (Webseite, Instagram, Veranstaltungskalender)
+- Wenn du keine genaue Uhrzeit findest: "20:00" als Default
+- Wenn du keinen genauen Preis findest: "Keine Angabe"
+- confidence: Wie sicher du dir bist dass das Event real ist und im Zeitraum stattfindet
 
 KATEGORIEN: nightlife, food_drink, concert, festival, sports, art, family, other
 
-ANTWORTFORMAT: Antworte NUR mit einem JSON-Array. Kein einleitender Text, keine Erklärungen, kein Markdown. Nur das reine JSON-Array.`;
+ANTWORTFORMAT: NUR ein JSON-Array. Kein Text, kein Markdown.`;
 }
 
 function buildUserPrompt(city: string, today: string, searchQueries: string[]) {
-  return `Suche nach Events in ${city} mit folgenden Suchbegriffen:
-${searchQueries.join("\n")}
+  return `Finde alle Events in ${city} zwischen ${today} und 2 Wochen danach.
 
-Suche nach:
-- Themenabende in Restaurants, Weinproben
-- Bar-Events (Pub Quiz, Karaoke, Open Mic, DJ-Abende)
-- Lokale Live-Musik in Kneipen/Bars, Club-Events
-- Instagram-Profile von Clubs/Bars: Lies die BIO (dort steht oft das nächste Event!) und die neuesten Posts/Reels
-- Flohmärkte, Kunstmärkte, Straßenfeste
-- Comedy-Abende, Poetry Slams
-- Workshops, Kurse
-- Vereinsevents, lokale Feste
-- Sport-Events
+Suchbegriffe die du verwenden sollst:
+${searchQueries.slice(0, 8).join("\n")}
 
-Antwort als JSON-Array. Jedes Event:
-{
-  "title": "Name des Events",
-  "description": "Kurze Beschreibung, max 200 Zeichen",
-  "date": "YYYY-MM-DD",
-  "time_start": "HH:MM",
-  "time_end": "HH:MM oder null",
-  "venue_name": "Name der Location",
-  "venue_address": "Vollständige Adresse",
-  "city": "${city}",
-  "category": "nightlife|food_drink|concert|festival|sports|art|family|other",
-  "price_info": "z.B. 10€, Kostenlos, Ab 5€",
-  "source_url": "URL der Webseite oder des Instagram-Posts (PFLICHT). Instagram z.B. https://www.instagram.com/p/... oder https://instagram.com/username/",
-  "confidence": 0.0-1.0
-}
+JSON-Array Format:
+[{"title":"...","description":"max 200 Zeichen","date":"YYYY-MM-DD","time_start":"HH:MM","time_end":"HH:MM oder null","venue_name":"...","venue_address":"...","city":"${city}","category":"nightlife|food_drink|concert|festival|sports|art|family|other","price_info":"...","source_url":"URL wo gefunden","confidence":0.0-1.0}]
 
-BEISPIEL für ein korrektes Event (Webseite):
-[{"title":"Pub Quiz Night","description":"Wöchentliches Pub Quiz mit Preisen. Teams bis 6 Personen.","date":"${today}","time_start":"20:00","time_end":"22:30","venue_name":"Irish Pub Downtown","venue_address":"Hauptstraße 12, ${city}","city":"${city}","category":"nightlife","price_info":"5€ pro Person","source_url":"https://example.com/events/pub-quiz","confidence":0.85}]
-BEISPIEL mit Instagram-Quelle: source_url kann auch "https://www.instagram.com/p/ABC123/" oder die Instagram-Seite einer Location sein.
-
-Leeres Array [] wenn nichts gefunden.
-
-WICHTIG: Antworte NUR mit dem JSON-Array. Kein Text davor oder danach.`;
+Gib [] zurück wenn nichts gefunden. NUR das JSON-Array, kein anderer Text.`;
 }
 
 interface DiscoveredEvent {
@@ -319,8 +290,7 @@ function processDiscoveredEvents(
         e.date &&
         e.time_start &&
         e.venue_name &&
-        e.confidence >= 0.7 &&
-        e.source_url &&
+        (e.confidence ?? 0.8) >= 0.5 &&
         e.date >= today &&
         e.date <= endDate
     )
@@ -331,12 +301,15 @@ function processDiscoveredEvents(
           (gUrl) => normalizedSource.includes(gUrl) || gUrl.includes(normalizedSource)
         );
         if (!isGrounded) {
-          e.confidence *= 0.85;
+          e.confidence = (e.confidence ?? 0.8) * 0.9;
         }
+      }
+      if (!e.source_url) {
+        e.confidence = (e.confidence ?? 0.8) * 0.8;
       }
       return e;
     })
-    .filter((e) => e.confidence >= 0.7)
+    .filter((e) => (e.confidence ?? 0.5) >= 0.5)
     .map((e, i): Event => {
       const venue: Venue = {
         id: `ai-venue-${city}-${i}-${Date.now()}`,
