@@ -166,9 +166,40 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
   });
 
   if (!text) {
-    throw new Error("Gemini hat keine Antwort zurückgegeben.");
+    console.warn("[discoverLocalEvents] Empty Gemini response, retrying once...");
+    const retry = await geminiRequest({
+      apiKey: GEMINI_API_KEY,
+      systemInstruction: {
+        parts: [{ text: buildSystemInstruction(city, today, endDate, weekday) }],
+      },
+      contents: [
+        { parts: [{ text: buildUserPrompt(city, today, searchQueries) }] },
+      ],
+      tools: [{ google_search: {} }],
+      temperature: 0.3,
+      maxOutputTokens: 8192,
+    });
+    if (!retry.text) {
+      throw new Error("Die KI konnte keine Events finden. Bitte später erneut versuchen.");
+    }
+    return processDiscoveredEvents(retry.text, retry.groundingUrls, city, today, endDate);
   }
 
+  const events = processDiscoveredEvents(text, groundingUrls, city, today, endDate);
+
+  if (events.length > 0) {
+    pendingCache.set(cacheKey, events);
+  }
+  return events;
+}
+
+function processDiscoveredEvents(
+  text: string,
+  groundingUrls: string[],
+  city: string,
+  today: string,
+  endDate: string
+): Event[] {
   const discovered = parseJsonArray<DiscoveredEvent>(text);
 
   if (discovered.length === 0 && text) {
@@ -182,7 +213,7 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
     groundingUrls.map((u) => normalizeUrl(u))
   );
 
-  const events = discovered
+  return discovered
     .filter(
       (e) =>
         e.title &&
@@ -252,13 +283,6 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
         photos_count: 0,
       };
     });
-
-  // Nur cachen wenn Events gefunden – leere Ergebnisse nicht cachen,
-  // damit eine erneute Suche Gemini nochmal fragt.
-  if (events.length > 0) {
-    pendingCache.set(cacheKey, events);
-  }
-  return events;
 }
 
 function normalizeUrl(url: string): string {

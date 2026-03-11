@@ -86,7 +86,24 @@ export async function geminiRequest(options: GeminiRequestOptions): Promise<Gemi
   const result = await (response as Response).json();
 
   const candidate = result?.candidates?.[0];
-  const text = candidate?.content?.parts
+
+  if (!candidate) {
+    const blockReason = result?.promptFeedback?.blockReason;
+    if (blockReason) {
+      console.warn("Gemini blocked:", blockReason);
+      throw new Error(`KI-Anfrage wurde blockiert (${blockReason}). Bitte andere Suchbegriffe versuchen.`);
+    }
+    console.warn("Gemini: No candidates in response", JSON.stringify(result).substring(0, 500));
+    return { text: "", groundingUrls: [] };
+  }
+
+  const finishReason = candidate.finishReason;
+  if (finishReason === "SAFETY") {
+    console.warn("Gemini: Response blocked by safety filter");
+    throw new Error("KI-Antwort wurde wegen Sicherheitsfilter blockiert. Bitte erneut versuchen.");
+  }
+
+  const text = candidate.content?.parts
     ?.map((p: any) => p.text ?? "")
     .join("") ?? "";
 

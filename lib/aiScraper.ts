@@ -73,19 +73,26 @@ function safeHostname(url: string): string {
 }
 
 async function fetchViaProxy(url: string): Promise<string | null> {
-  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const html = await res.text();
-    if (!html || html.length < 50) return null;
-    return stripHtmlToText(html).substring(0, 25000);
-  } catch {
-    return null;
+  const proxies = [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  ];
+  for (const proxyUrl of proxies) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
+      const res = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) continue;
+      const html = await res.text();
+      if (!html || html.length < 50) continue;
+      return stripHtmlToText(html).substring(0, 25000);
+    } catch {
+      continue;
+    }
   }
+  console.warn("[fetchViaProxy] All proxies failed for:", url);
+  return null;
 }
 
 function stripHtmlToText(html: string): string {
