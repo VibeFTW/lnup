@@ -10,6 +10,8 @@
  */
 
 import { geminiRequest, parseJsonArray } from "../lib/geminiClient";
+import { getSourcesForCity } from "../lib/eventSources";
+import { stripHtmlToText } from "../lib/fetchProxy";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -272,41 +274,95 @@ async function scanCitiesWithAi(result: ScanResult) {
 
 const WEEKDAYS = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
+async function fetchPageDirect(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "LNUP-Bot/1.0", Accept: "text/html" },
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const html = await res.text();
+    if (!html || html.length < 50) return null;
+    return stripHtmlToText(html).substring(0, 20000);
+  } catch {
+    return null;
+  }
+}
+
 async function discoverEventsForCity(city: string, today: string): Promise<any[]> {
   const now = new Date();
   const weekday = WEEKDAYS[now.getDay()];
   const endDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
     .toISOString().split("T")[0];
 
+  const sources = getSourcesForCity(city);
+
+  // Scrape-first: Quellen-URLs direkt laden (kein CORS auf Server)
+  let combinedContent = "";
+  if (sources.websites.length > 0) {
+    console.log(`    Loading ${sources.websites.length} source URLs...`);
+    for (const url of sources.websites) {
+      const content = await fetchPageDirect(url);
+      if (content && content.length > 100) {
+        combinedContent += `\n\n=== QUELLE: ${url} ===\n${content}`;
+        console.log(`    Loaded: ${url} (${content.length} chars)`);
+      } else {
+        console.log(`    Failed: ${url}`);
+      }
+      await delay(500);
+    }
+  }
+
+  if (combinedContent.length > 500) {
+    // Scrape-Modus: Konkreten Seiteninhalt auswerten (ohne google_search)
+    const { text } = await geminiRequest({
+      apiKey: GEMINI_API_KEY,
+      contents: [{
+        parts: [
+          {
+            text: `Analysiere den folgenden Seiteninhalt aus ${city} und extrahiere ALLE Events/Veranstaltungen die zwischen ${today} (${weekday}) und ${endDate} stattfinden.
+
+Extrahiere NUR Events die im Text tatsächlich erwähnt werden. Erfinde NICHTS.
+Wenn keine Uhrzeit angegeben: nutze "20:00". source_url = die URL der Quelle.
+
+Antwort als JSON-Array:
+[{"title":"...","description":"max 200 Zeichen","date":"YYYY-MM-DD","time_start":"HH:MM","time_end":null,"venue_name":"...","venue_address":"...","category":"nightlife|food_drink|concert|festival|sports|art|family|other","price_info":"...","source_url":"...","confidence":0.0-1.0}]
+
+Leeres Array [] wenn keine Events gefunden.`,
+          },
+          { text: combinedContent.substring(0, 50000) },
+        ],
+      }],
+      temperature: 0.1,
+      maxOutputTokens: 8192,
+    });
+
+    const events = parseJsonArray<any>(text);
+    const filtered = events.filter(
+      (e: any) => e.title && e.date && e.venue_name && e.date >= today && e.date <= endDate
+    );
+    if (filtered.length > 0) return filtered;
+  }
+
+  // Fallback: google_search
+  console.log(`    Falling back to google_search for ${city}`);
   const { text } = await geminiRequest({
     apiKey: GEMINI_API_KEY,
     systemInstruction: {
       parts: [{
-        text: `Du bist ein erfahrener Event-Scout für die Stadt ${city} in Deutschland.
-Deine Aufgabe: Finde ECHTE, AKTUELLE Events die zwischen ${today} (${weekday}) und ${endDate} stattfinden.
-
-REGELN:
-- Erfinde NIEMALS Events. Nur Events die du tatsächlich über die Google-Suche findest.
-- Jedes Event MUSS eine echte, funktionierende source_url haben (Webseite ODER Instagram-Beitrag/Seite).
-- Suche auch gezielt auf Instagram: Clubs, Bars und Locations posten dort oft ihre Events. Instagram-URLs (instagram.com/...) sind als source_url erlaubt.
-- Gib NUR Events zurück bei denen du dir sicher bist (confidence >= 0.7).
-
-NICHT zurückgeben:
-- Regelmäßige Öffnungszeiten von Restaurants/Bars
-- Dauerausstellungen in Museen
-- Events die bereits stattgefunden haben (vor ${today})
-- Erfundene oder vermutete Events
-
-KATEGORIEN: nightlife, food_drink, concert, festival, sports, art, family, other`,
+        text: `Du bist ein Event-Scout für ${city}. Finde ECHTE Events zwischen ${today} (${weekday}) und ${endDate}.
+Erfinde NIEMALS Events. Jedes Event MUSS eine echte source_url haben. Confidence >= 0.7.
+KATEGORIEN: nightlife, food_drink, concert, festival, sports, art, family, other
+Antworte NUR mit einem JSON-Array.`,
       }],
     },
     contents: [{
       parts: [{
-        text: `Suche nach Events in ${city}: Themenabende, Bar-Events, Live-Musik, Club-Events, Flohmärkte, Comedy, Workshops, Sport-Events. Suche auch auf Instagram nach Event-Ankündigungen von Clubs, Bars und Locations.
-
-Antwort als JSON-Array:
-[{"title":"...","description":"...","date":"YYYY-MM-DD","time_start":"HH:MM","time_end":"HH:MM oder null","venue_name":"...","venue_address":"...","category":"nightlife|food_drink|concert|festival|sports|art|family|other","price_info":"...","source_url":"URL der Quelle (PFLICHT)","confidence":0.0-1.0}]
-
+        text: `Suche nach Events in ${city}. Antwort als JSON-Array:
+[{"title":"...","description":"...","date":"YYYY-MM-DD","time_start":"HH:MM","time_end":null,"venue_name":"...","venue_address":"...","category":"...","price_info":"...","source_url":"...","confidence":0.0-1.0}]
 Leeres Array [] wenn nichts gefunden.`,
       }],
     }],
@@ -316,11 +372,8 @@ Leeres Array [] wenn nichts gefunden.`,
   });
 
   const events = parseJsonArray<any>(text);
-
   return events.filter(
-    (e: any) => e.title && e.date && e.time_start && e.venue_name
-      && e.source_url
-      && e.confidence >= 0.7
+    (e: any) => e.title && e.date && e.venue_name
       && e.date >= today && e.date <= endDate
   );
 }

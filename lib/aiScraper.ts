@@ -1,5 +1,6 @@
 import { GEMINI_API_KEY } from "./constants";
 import { geminiRequest, parseJsonArray } from "./geminiClient";
+import { fetchPageContent, safeHostname } from "./fetchProxy";
 import type { EventCategory } from "@/types";
 
 export interface ExtractedEvent {
@@ -37,79 +38,12 @@ Wenn keine Events gefunden werden, gib ein leeres Array zurück: []
 
 WICHTIG: Antworte NUR mit dem JSON-Array. Kein Text davor oder danach, kein Markdown.`;
 
-async function fetchUrlContent(url: string): Promise<string | null> {
-  // 1. Direkt versuchen
-  const direct = await fetchWithTimeout(url);
-  if (direct) return direct;
-
-  // 2. CORS-Proxy als Fallback
-  const proxied = await fetchViaProxy(url);
-  if (proxied) return proxied;
-
-  return null;
-}
-
-async function fetchWithTimeout(url: string): Promise<string | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { Accept: "text/html,text/plain;q=0.9,*/*;q=0.8" },
-    });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const html = await res.text();
-    if (!html || html.length < 50) return null;
-    return stripHtmlToText(html).substring(0, 25000);
-  } catch {
-    return null;
-  }
-}
-
-function safeHostname(url: string): string {
-  try { return new URL(url).hostname; }
-  catch { return url.replace(/^https?:\/\//, "").split("/")[0]; }
-}
-
-async function fetchViaProxy(url: string): Promise<string | null> {
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  ];
-  for (const proxyUrl of proxies) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
-      const res = await fetch(proxyUrl, { signal: controller.signal });
-      clearTimeout(timeout);
-      if (!res.ok) continue;
-      const html = await res.text();
-      if (!html || html.length < 50) continue;
-      return stripHtmlToText(html).substring(0, 25000);
-    } catch {
-      continue;
-    }
-  }
-  console.warn("[fetchViaProxy] All proxies failed for:", url);
-  return null;
-}
-
-function stripHtmlToText(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 export async function extractEventsFromUrl(url: string): Promise<ExtractedEvent[]> {
   if (!GEMINI_API_KEY) {
     throw new Error("Gemini API Key nicht konfiguriert. Bitte EXPO_PUBLIC_GEMINI_API_KEY in .env setzen.");
   }
 
-  const pageContent = await fetchUrlContent(url);
+  const pageContent = await fetchPageContent(url);
   const useContent = pageContent && pageContent.length > 100;
 
   const { text } = await geminiRequest({
