@@ -177,6 +177,7 @@ export default function ProfileEditScreen() {
               onChangeText={setDisplayName}
               placeholder="Dein Name"
               placeholderTextColor={COLORS.textMuted}
+              maxLength={50}
               className="bg-card border border-border rounded-xl px-4 py-3 text-text-primary text-base"
             />
           </View>
@@ -187,10 +188,11 @@ export default function ProfileEditScreen() {
               <Text className="text-text-muted text-base">@</Text>
               <TextInput
                 value={username}
-                onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                onChangeText={(t) => setUsername(t.toLowerCase().replace(/[^a-z0-9_]/g, "").substring(0, 30))}
                 placeholder="benutzername"
                 placeholderTextColor={COLORS.textMuted}
                 autoCapitalize="none"
+                maxLength={30}
                 className="flex-1 py-3 text-text-primary text-base ml-1"
               />
             </View>

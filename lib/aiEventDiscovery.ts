@@ -107,7 +107,7 @@ async function scrapeAndAnalyze(
   const sources = getSourcesForCity(city);
   if (sources.websites.length === 0) return [];
 
-  console.log(`[scrapeAndAnalyze] Loading ${sources.websites.length} sources for ${city}...`);
+  if (__DEV__) console.log(`[scrapeAndAnalyze] Loading ${sources.websites.length} sources for ${city}...`);
   const { contents, totalLength } = await fetchMultiplePages(sources.websites);
 
   if (contents.size === 0 || totalLength < 100) {
@@ -115,7 +115,7 @@ async function scrapeAndAnalyze(
     return [];
   }
 
-  console.log(`[scrapeAndAnalyze] Loaded ${contents.size}/${sources.websites.length} sources (${totalLength} chars)`);
+  if (__DEV__) console.log(`[scrapeAndAnalyze] Loaded ${contents.size}/${sources.websites.length} sources (${totalLength} chars)`);
 
   let combinedText = "";
   for (const [url, text] of contents) {
@@ -216,7 +216,7 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
   try {
     const scraped = await scrapeAndAnalyze(city, today, endDate, weekday);
     if (scraped.length > 0) {
-      console.log(`[discoverLocalEvents] Scrape found ${scraped.length} events for ${city}`);
+      if (__DEV__) console.log(`[discoverLocalEvents] Scrape found ${scraped.length} events for ${city}`);
       pendingCache.set(cacheKey, scraped);
       return scraped;
     }
@@ -225,7 +225,7 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
   }
 
   // 2. Fallback: Google Search Grounding
-  console.log(`[discoverLocalEvents] Falling back to google_search for ${city}`);
+  if (__DEV__) console.log(`[discoverLocalEvents] Falling back to google_search for ${city}`);
   const sources = getSourcesForCity(city);
   const baseQueries = SEARCH_QUERIES.map((q) => q.replace("{city}", city));
   const sourceQueries = sources.websites.map((url) => {
@@ -278,7 +278,7 @@ function processDiscoveredEvents(
       text.substring(0, 600)
     );
   } else {
-    console.log(`[processDiscoveredEvents] Parsed ${discovered.length} events, filtering...`);
+    if (__DEV__) console.log(`[processDiscoveredEvents] Parsed ${discovered.length} events, filtering...`);
   }
 
   const groundingUrlSet = new Set(

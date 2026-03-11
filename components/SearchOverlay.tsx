@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useEventStore } from "@/stores/eventStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { supabase } from "@/lib/supabase";
 import { getRankForScore } from "@/lib/ranks";
 import { formatEventDate, formatTime } from "@/lib/utils";
@@ -278,7 +279,10 @@ export function SearchOverlay({ visible, onClose }: SearchOverlayProps) {
             data={filteredVenues}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <VenueRow venue={item} onPress={handleClose} />
+              <VenueRow venue={item} onPress={() => {
+                if (item.city) useFilterStore.getState().setCity(item.city);
+                handleClose();
+              }} />
             )}
             contentContainerStyle={{ paddingBottom: 40 }}
             ListEmptyComponent={

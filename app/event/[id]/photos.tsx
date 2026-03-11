@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, FlatList, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, FlatList, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -8,15 +8,15 @@ import { PhotoUpload } from "@/components/PhotoUpload";
 
 const NUM_COLUMNS = 3;
 const GAP = 4;
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const TILE_SIZE = (SCREEN_WIDTH - 32 - GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
 export default function EventPhotosScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const photos = useEventStore((s) => s.getPhotosForEvent(id));
-  const event = useEventStore((s) => s.getEventById(id));
+  const { width: screenWidth } = useWindowDimensions();
+  const tileSize = (screenWidth - 32 - GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
+  const photos = useEventStore((s) => s.getPhotosForEvent(id ?? ""));
+  const event = useEventStore((s) => s.getEventById(id ?? ""));
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
@@ -44,7 +44,7 @@ export default function EventPhotosScreen() {
         renderItem={({ item }) => (
           <Image
             source={{ uri: item.image_url }}
-            style={{ width: TILE_SIZE, height: TILE_SIZE, borderRadius: 8 }}
+            style={{ width: tileSize, height: tileSize, borderRadius: 8 }}
             contentFit="cover"
             transition={200}
           />

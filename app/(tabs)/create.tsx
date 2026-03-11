@@ -325,6 +325,7 @@ export default function CreateEventScreen() {
                   onChange={(e) => {
                     const val = (e.target as HTMLInputElement).value;
                     if (val) setEventDate(new Date(val + "T12:00:00"));
+                    else setEventDate(null);
                   }}
                   style={{
                     backgroundColor: "var(--color-card, #1A1A2E)",
@@ -366,7 +367,7 @@ export default function CreateEventScreen() {
                       const d = new Date();
                       d.setHours(h, m, 0, 0);
                       setTimeStart(d);
-                    }
+                    } else setTimeStart(null);
                   }}
                   style={{
                     backgroundColor: "var(--color-card, #1A1A2E)",
@@ -406,7 +407,7 @@ export default function CreateEventScreen() {
                       const d = new Date();
                       d.setHours(h, m, 0, 0);
                       setTimeEnd(d);
-                    }
+                    } else setTimeEnd(null);
                   }}
                   style={{
                     backgroundColor: "var(--color-card, #1A1A2E)",
