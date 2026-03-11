@@ -79,18 +79,25 @@ export async function fetchMultiplePages(
 ): Promise<{ contents: Map<string, string>; totalLength: number }> {
   const contents = new Map<string, string>();
   let totalLength = 0;
+  const perUrlLimit = Math.max(5000, Math.floor(maxTotalChars / Math.max(urls.length, 1)));
 
   const results = await Promise.allSettled(
     urls.map(async (url) => {
-      const remaining = maxTotalChars - totalLength;
-      if (remaining < 500) return { url, text: null };
-      const text = await fetchPageContent(url, Math.min(remaining, 15000));
+      const text = await fetchPageContent(url, perUrlLimit);
       return { url, text };
     })
   );
 
   for (const result of results) {
     if (result.status === "fulfilled" && result.value.text) {
+      if (totalLength + result.value.text.length > maxTotalChars) {
+        const remaining = maxTotalChars - totalLength;
+        if (remaining > 500) {
+          contents.set(result.value.url, result.value.text.substring(0, remaining));
+          totalLength += remaining;
+        }
+        break;
+      }
       contents.set(result.value.url, result.value.text);
       totalLength += result.value.text.length;
     }
