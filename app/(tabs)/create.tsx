@@ -171,7 +171,7 @@ export default function CreateEventScreen() {
         image_url: imageUrl,
         is_private: isPrivate,
         invite_code: isPrivate ? inviteCode : null,
-        max_attendees: isPrivate && maxAttendees ? parseInt(maxAttendees, 10) : null,
+        max_attendees: isPrivate && maxAttendees ? Math.max(1, parseInt(maxAttendees, 10) || 0) || null : null,
       });
 
       if (eventError) throw eventError;

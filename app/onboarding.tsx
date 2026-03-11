@@ -46,7 +46,11 @@ export default function OnboardingScreen() {
   };
 
   const completeOnboarding = async () => {
-    await AsyncStorage.setItem("@lnup_onboarded", "true");
+    try {
+      await AsyncStorage.setItem("@lnup_onboarded", "true");
+    } catch (e) {
+      console.warn("completeOnboarding error:", e);
+    }
     router.replace("/(tabs)");
   };
 
@@ -78,6 +82,7 @@ export default function OnboardingScreen() {
           setCurrentIndex(index);
         }}
         keyExtractor={(_, i) => String(i)}
+        onScrollToIndexFailed={() => {}}
         renderItem={({ item }) => (
           <View style={{ width: SCREEN_WIDTH }} className="flex-1 items-center justify-center px-8">
             {/* Icon area */}

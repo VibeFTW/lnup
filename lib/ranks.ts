@@ -26,7 +26,7 @@ export function getProgressToNextRank(score: number): number {
   if (!next) return 1;
   const range = next.min_score - current.min_score;
   const progress = score - current.min_score;
-  return Math.min(progress / range, 1);
+  return Math.max(0, Math.min(progress / range, 1));
 }
 
 export const POINTS = {

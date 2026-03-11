@@ -686,6 +686,7 @@ export const useEventStore = create<EventState>((set, get) => ({
   },
 
   moderatePhoto: async (photoId, approved) => {
+    const previousPhotos = get().photos;
     set((state) => ({
       photos: state.photos.map((p) =>
         p.id === photoId
@@ -707,7 +708,10 @@ export const useEventStore = create<EventState>((set, get) => ({
       .update(updateData)
       .eq("id", photoId);
 
-    if (error) showError("Foto konnte nicht moderiert werden.");
+    if (error) {
+      set({ photos: previousPhotos });
+      showError("Foto konnte nicht moderiert werden.");
+    }
   },
 
   fetchPrivateEvents: async () => {
@@ -744,7 +748,7 @@ export const useEventStore = create<EventState>((set, get) => ({
     const { data: event, error: lookupError } = await supabase
       .from("events")
       .select("id, title, max_attendees, invite_code")
-      .eq("invite_code", inviteCode.toUpperCase())
+      .eq("invite_code", inviteCode.trim().toUpperCase())
       .eq("is_private", true)
       .eq("status", "active")
       .maybeSingle();
@@ -823,8 +827,11 @@ export const useEventStore = create<EventState>((set, get) => ({
       .eq("event_id", eventId)
       .eq("user_id", userId);
 
-    if (error) showError("Mitglied konnte nicht entfernt werden.");
-    else useToastStore.getState().showToast("Mitglied entfernt.", "success");
+    if (error) {
+      showError("Mitglied konnte nicht entfernt werden.");
+      throw error;
+    }
+    useToastStore.getState().showToast("Mitglied entfernt.", "success");
   },
 
   getEventMembers: async (eventId) => {
