@@ -182,7 +182,11 @@ export async function discoverLocalEvents(city: string): Promise<Event[]> {
     if (!retry.text) {
       throw new Error("Die KI konnte keine Events finden. Bitte später erneut versuchen.");
     }
-    return processDiscoveredEvents(retry.text, retry.groundingUrls, city, today, endDate);
+    const retryEvents = processDiscoveredEvents(retry.text, retry.groundingUrls, city, today, endDate);
+    if (retryEvents.length > 0) {
+      pendingCache.set(cacheKey, retryEvents);
+    }
+    return retryEvents;
   }
 
   const events = processDiscoveredEvents(text, groundingUrls, city, today, endDate);
