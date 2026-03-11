@@ -57,11 +57,13 @@ async function persistEventsToDb(events: Event[], sourceTypes: string[]): Promis
 
   for (const event of events) {
     try {
+      const VALID_SOURCE_TYPES = ["api_ticketmaster", "ai_discovered", "ai_scraped", "platform", "verified_organizer", "verified_user", "community"];
       if (!event.title || !event.event_date || !event.source_type) {
         console.warn("[persistEventsToDb] Skipping event with missing fields:", event.title);
         failed++;
         continue;
       }
+      const sourceType = VALID_SOURCE_TYPES.includes(event.source_type) ? event.source_type : sourceTypes[0] ?? "ai_discovered";
       const dedupKey = `${event.title}|${event.event_date}`;
       if (seenKeys.has(dedupKey) || existingSet.has(dedupKey)) continue;
       seenKeys.add(dedupKey);
@@ -119,9 +121,9 @@ async function persistEventsToDb(events: Event[], sourceTypes: string[]): Promis
         event_date: event.event_date,
         time_start: timeStart,
         time_end: timeEnd,
-        category: event.category,
+        category: ["nightlife", "food_drink", "concert", "festival", "sports", "art", "family", "other"].includes(event.category) ? event.category : "other",
         price_info: event.price_info || null,
-        source_type: event.source_type,
+        source_type: sourceType,
         source_url: event.source_url || null,
         status: "active",
         ai_confidence: event.ai_confidence,
