@@ -15,7 +15,7 @@ import { useFilterStore } from "@/stores/filterStore";
 import { supabase } from "@/lib/supabase";
 import { getRankForScore } from "@/lib/ranks";
 import { formatEventDate, formatTime } from "@/lib/utils";
-import { getCategoryIcon } from "@/lib/categories";
+import { getCategoryIcon, getCategoryLabel } from "@/lib/categories";
 import { COLORS } from "@/lib/constants";
 import type { Event, Profile, Venue, RankId } from "@/types";
 
@@ -43,7 +43,7 @@ function EventRow({ event, onPress }: { event: Event; onPress: () => void }) {
           {event.title}
         </Text>
         <Text className="text-xs text-text-muted" numberOfLines={1}>
-          {event.venue?.name} · {formatEventDate(event.event_date)} · {formatTime(event.time_start)}
+          {getCategoryLabel(event.category)} · {event.venue?.name ?? ""} · {formatEventDate(event.event_date)}
         </Text>
       </View>
       <View className="items-end">

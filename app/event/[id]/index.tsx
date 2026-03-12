@@ -13,6 +13,7 @@ import { RankBadge } from "@/components/RankBadge";
 import { EventCover } from "@/components/EventCover";
 import { PhotoGallery } from "@/components/PhotoGallery";
 import { PhotoUpload } from "@/components/PhotoUpload";
+import { EventComments } from "@/components/EventComments";
 import { PhotoModeration } from "@/components/PhotoModeration";
 import { ReportModal } from "@/components/ReportModal";
 import { InviteModal } from "@/components/InviteModal";
@@ -330,6 +331,9 @@ export default function EventDetailScreen() {
           <PhotoGallery photos={approvedPhotos} />
           {isHost && <PhotoModeration eventId={event.id} />}
           <PhotoUpload eventId={event.id} />
+
+          {/* Comments */}
+          <EventComments eventId={event.id} />
 
           {event.source_type === "community" && event.creator?.rank === "newbie" && (
             <View className="bg-warning/10 rounded-xl border border-warning/30 p-4 flex-row items-start gap-3 mb-6">

@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { TrustBadge } from "./TrustBadge";
 import { RankBadge } from "./RankBadge";
 import { EventCover } from "./EventCover";
-import { formatEventDate, formatTime } from "@/lib/utils";
+import { formatEventDate, formatTime, getCountdownLabel } from "@/lib/utils";
 import { useEventStore } from "@/stores/eventStore";
 import type { Event } from "@/types";
 
@@ -98,7 +98,22 @@ export function EventCard({ event, onToggleGoing, isGoing }: EventCardProps) {
         </Animated.View>
       )}
       {/* Cover Image / Category Gradient */}
-      <EventCover category={event.category} imageUrl={event.image_url} />
+      <View>
+        <EventCover category={event.category} imageUrl={event.image_url} />
+        {(() => {
+          const countdown = getCountdownLabel(event.event_date, event.time_start);
+          if (!countdown) return null;
+          const isUrgent = countdown === "Heute" || countdown === "Morgen" || countdown === "Jetzt!";
+          return (
+            <View
+              className="absolute top-2 left-2 rounded-full px-2.5 py-1"
+              style={{ backgroundColor: isUrgent ? "rgba(255,82,82,0.9)" : "rgba(0,0,0,0.7)" }}
+            >
+              <Text className="text-xs font-bold text-white">{countdown}</Text>
+            </View>
+          );
+        })()}
+      </View>
 
       <View className="p-4">
         {/* Header: Trust badge + Creator info + Free badge */}

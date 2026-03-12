@@ -16,6 +16,32 @@ export function formatEventDate(dateStr: string): string {
   }
 }
 
+export function getCountdownLabel(dateStr: string, timeStart?: string): string | null {
+  try {
+    const date = parseISO(dateStr);
+    if (isNaN(date.getTime())) return null;
+    const now = new Date();
+    const days = differenceInDays(date, now);
+    if (days < 0) return null;
+    if (days === 0) {
+      if (timeStart && timeStart.length >= 5) {
+        const [h, m] = timeStart.split(":").map(Number);
+        const eventTime = new Date(date);
+        eventTime.setHours(h, m, 0, 0);
+        const hoursLeft = Math.floor((eventTime.getTime() - now.getTime()) / (1000 * 60 * 60));
+        if (hoursLeft > 0) return `Heute in ${hoursLeft} Std`;
+        if (hoursLeft === 0) return "Jetzt!";
+      }
+      return "Heute";
+    }
+    if (days === 1) return "Morgen";
+    if (days <= 7) return `In ${days} Tagen`;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function formatTime(timeStr: string): string {
   if (!timeStr || timeStr.length < 5) return timeStr ?? "";
   return timeStr.substring(0, 5);

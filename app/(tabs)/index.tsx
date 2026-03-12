@@ -191,7 +191,7 @@ export default function FeedScreen() {
         <FlatList
           data={filteredEvents}
           keyExtractor={(item) => item.id}
-          ListHeaderComponent={<TrendingEvents events={filteredEvents} />}
+          ListHeaderComponent={useMemo(() => <TrendingEvents events={filteredEvents} />, [filteredEvents])}
           renderItem={({ item }) => (
             <EventCard
               event={item}
@@ -201,6 +201,9 @@ export default function FeedScreen() {
           )}
           contentContainerStyle={{ paddingBottom: 20 }}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={6}
+          maxToRenderPerBatch={4}
+          windowSize={7}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
