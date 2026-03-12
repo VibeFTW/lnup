@@ -11,4 +11,8 @@ When you complete work that modifies files:
 2. **Commit** with a descriptive message: `git add -A && git commit -m "..."`
 3. **Push** to remote: `git push origin main`
 
-Do not leave changes uncommitted or unpushed when the task is finished.
+**Multi-agent workflow**: Each agent commits and pushes their own work. Do not wait for the user to tell you—push as soon as your part is done.
+
+**Merge conflicts**: If conflicts occur, resolve them yourself. Decide what stays; do not ask the user.
+
+**Summary**: At the end, give a brief summary of what was done, changed, or added (keep it short).
