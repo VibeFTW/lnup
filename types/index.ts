@@ -150,6 +150,16 @@ export interface EventReport {
   created_at: string;
 }
 
+export interface EventUpdate {
+  id: string;
+  event_id: string;
+  author_id: string;
+  author?: Profile;
+  body: string;
+  is_pinned: boolean;
+  created_at: string;
+}
+
 export interface EventMember {
   id: string;
   event_id: string;

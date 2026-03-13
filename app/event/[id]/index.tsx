@@ -17,8 +17,10 @@ import { EventComments } from "@/components/EventComments";
 import { PhotoModeration } from "@/components/PhotoModeration";
 import { ReportModal } from "@/components/ReportModal";
 import { InviteModal } from "@/components/InviteModal";
+import { EventUpdates } from "@/components/EventUpdates";
 import { formatEventDate, formatTime } from "@/lib/utils";
 import { getCategoryLabel, getCategoryIcon, getCategoryGradient } from "@/lib/categories";
+import { exportToCalendar } from "@/lib/calendar";
 import { APP_URL, COLORS } from "@/lib/constants";
 
 export default function EventDetailScreen() {
@@ -303,12 +305,20 @@ export default function EventDetailScreen() {
               <View className="w-10 h-10 rounded-full bg-primary/10 items-center justify-center">
                 <Ionicons name="calendar" size={20} color="#6C5CE7" />
               </View>
-              <View>
+              <View className="flex-1">
                 <Text className="text-sm font-semibold text-text-primary">{formatEventDate(event.event_date)}</Text>
                 <Text className="text-xs text-text-secondary">
                   {formatTime(event.time_start)}{event.time_end && ` – ${formatTime(event.time_end)}`} Uhr
                 </Text>
               </View>
+              <TouchableOpacity
+                onPress={() => exportToCalendar(event)}
+                className="flex-row items-center gap-1 bg-primary/10 rounded-lg px-2.5 py-1.5"
+                activeOpacity={0.7}
+              >
+                <Ionicons name="calendar-outline" size={14} color="#6C5CE7" />
+                <Text className="text-xs font-medium text-primary">Kalender</Text>
+              </TouchableOpacity>
             </View>
 
             {event.price_info && (
@@ -359,6 +369,8 @@ export default function EventDetailScreen() {
               <Text className="text-xs text-text-muted">Fotos</Text>
             </View>
           </View>
+
+          <EventUpdates eventId={event.id} isHost={isHost} isAdmin={isAdmin} />
 
           <PhotoGallery photos={approvedPhotos} />
           {isHost && <PhotoModeration eventId={event.id} />}
